@@ -291,32 +291,69 @@ static const struct file_operations dumpcache_fops = {
 	.release = seq_release
 };
 
+//
+// Raspberry Pi 4B has ARM Cortex-A72 in it
+// See ARM® Cortex®-A57 MPCore Processor Revision: r1p3
+//
+
 static inline void asm_flush_cache(void) {
+#ifdef DO_ASM
     asm volatile(
-        "MCR p15, 0, r0, c7, c5, 0\t\n"
-        "MCR p15, 0, Rd, c7, c6, 0"
+        "MCR p15, 0, r0, c7, c5, 0\n"
+        "MCR p15, 0, Rd, c7, c6, 0\n"
     );
+#endif
 }
 
+//
 // Ramindex operation
+//
 // 4.3.64 in ARM Cortex-A57 MPCore Processor Technical Reference Manual
+// 4.3.64 in ARM Cortex-A72 MPCore Processor Technical Reference Manual
+//
 static inline void asm_ramindex_mcr(u32 ramindex)
 {
+#ifdef DO_ASM
 	asm volatile(
-	    "sys #0, c15, c4, #0, %0\t\n"
-	    "dsb sy\t\n"
-	    "isb" :: "r" (ramindex));
+	    "sys #0, c15, c4, #0, %0\n"
+	    "dsb sy\n"  // data sync basrrier
+	    "isb\n"     // instruction sync barrier
+	    :: "r" (ramindex));
+#else
+  printk(KERN_INFO "Elide RAMINDEX mcr: %d", ramindex);
+#endif
 }
 
-
+//
 // reading from DL1DATA0_EL1
+//
 // 4.3.63 in ARM Cortex-A57 MPCore Processor Technical Reference Manual
+// 4.3.63 in ARM Cortex-A72 MPCore Processor Technical Reference Manual
+//
 static inline void asm_ramindex_mrc(u32 *dl1data, u8 sel)
 {
-	if (sel & 0x01) asm volatile("mrs %0,S3_0_c15_c1_0" : "=r"(dl1data[0]));
-	if (sel & 0x02) asm volatile("mrs %0,S3_0_c15_c1_1" : "=r"(dl1data[1]));
-	if (sel & 0x04) asm volatile("mrs %0,S3_0_c15_c1_2" : "=r"(dl1data[2]));
-	if (sel & 0x08) asm volatile("mrs %0,S3_0_c15_c1_3" : "=r"(dl1data[3]));
+#ifdef DO_ASM
+	if (sel & 0x01) {
+	  asm volatile("mrs %0,S3_0_c15_c1_0" : "=r"(dl1data[0]));
+	}
+	if (sel & 0x02) {
+	  asm volatile("mrs %0,S3_0_c15_c1_1" : "=r"(dl1data[1]));
+	}
+	if (sel & 0x04) {
+	  asm volatile("mrs %0,S3_0_c15_c1_2" : "=r"(dl1data[2]));
+	}
+	if (sel & 0x08) {
+	  asm volatile("mrs %0,S3_0_c15_c1_3" : "=r"(dl1data[3]));
+	}
+#else
+  printk(KERN_INFO "Elide RAMINDEX mrc: sel=0x%x", sel);
+  if (dl1data) {
+    dl1data[0] = 0x0badf00d;
+    dl1data[1] = 0x1badf00d;
+    dl1data[2] = 0x2badf00d;
+    dl1data[3] = 0x3badf00d;
+  }
+#endif
 }
 
 
@@ -326,6 +363,7 @@ static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 {
 	u32 ramid    = 0x10;
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
+
 	asm_ramindex_mcr(ramindex);
 	asm_ramindex_mrc(dl1data, 0x01);
 
@@ -480,7 +518,7 @@ static int dump_all_indices(void) {
 	int i = 0;
 	for (i = 0; i < CACHESETS_TO_WRITE; i++) {
 		if (dump_index(i, &cur_sample->sets[i]) == 1){
-			//printk(KERN_INFO "Error dumping index: %d", i);
+			printk(KERN_INFO "Error dumping index: %d", i);
 			return 1;
 		}
 	}
@@ -503,7 +541,11 @@ static int dumpcache_open(struct inode *inode, struct file *filp)
 
 int init_module(void)
 {
-	//printk(KERN_INFO "dumpcache module is loaded\n");
+	printk(KERN_INFO "dumpcache module is loaded cache_line.size=%ld cache_set.size=%ld cache_sample.size=%ld\n",
+            sizeof(struct cache_line),
+            sizeof(struct cache_set),
+            sizeof(struct cache_sample)
+            );
 	dump_all_indices_done = 0;
 
 	pr_info("Initializing SHUTTER. Entries: Aperture1 = %ld, Aperture2 = %ld\n",
@@ -548,7 +590,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	//printk(KERN_INFO "dumpcache module is unloaded\n");
+	printk(KERN_INFO "dumpcache module is unloaded\n");
 	if(__buf_start1) {
 		iounmap(__buf_start1);
 		__buf_start1 = NULL;

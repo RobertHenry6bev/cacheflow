@@ -1,7 +1,7 @@
 /*************************************************************/
 /*                                                           */
 /*  Unified code to launch benchmarks with periodic          */
-/*  snapshotting. This code was initially written by:        */
+/*  snap shotting. This code was initially written by:        */
 /*  Steven Brzozowski (BU)                                   */
 /*  Major rev. by: Dharmesh Tarapore (BU)                    */
 /*  Major rev. by: Renato Mancuso (BU)                       */

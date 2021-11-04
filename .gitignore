@@ -1,1 +1,10 @@
 .DS_Store
+.dumpcache*
+junk
+*.out
+Module.symvers
+*.ko
+*.mod
+*.mod.o
+*.o
+modules.order
