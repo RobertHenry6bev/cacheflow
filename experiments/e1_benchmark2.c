@@ -22,6 +22,7 @@ int main() {
 		// usleep(1000);
 		iterations++;
 	}
+        (void)a;
 	free(buf);
 	return 0;
 }

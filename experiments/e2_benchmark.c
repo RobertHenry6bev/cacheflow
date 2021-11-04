@@ -1,7 +1,6 @@
 #include "params.h"
 
 void read_memory_map(void) {
-	char input_filename[20];
 	FILE* mmap_fp;
 	FILE* output_fp;
 	char s[100];
@@ -49,6 +48,7 @@ int main() {
 		iterations++;
 	}
 	
+        (void)a;
 	free(buf);
 	read_memory_map();
 	return 0;
