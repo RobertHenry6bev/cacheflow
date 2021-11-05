@@ -9,3 +9,5 @@ Module.symvers
 *.o
 modules.order
 .*.swp
+*.dtb
+*.dts
