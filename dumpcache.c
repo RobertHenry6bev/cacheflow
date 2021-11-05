@@ -30,17 +30,17 @@
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
+
 // Might need this
 //pragma GCC pop_options
+
 /* Struct representing a single cache line - each cacheline struct is 68 bytes */
-struct cache_line
-{
+struct cache_line {
 	pid_t pid;
 	uint64_t addr;
 };
 
-struct cache_set
-{
+struct cache_set {
 	struct cache_line cachelines[16];
 };
 
@@ -50,8 +50,9 @@ struct cache_sample {
 
 /* Global variables */
 
-/* Unfortunately this platform has two apettures for DRAM, with a
- * large hole in the middle. Here is what the address space loops like
+/*
+ * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
+ * large hole in the middle. Here is what the address space looks like
  * when the kernel is booted with mem=2560 (2.5 GB). 
  * 
  * 0x080000000 -> 0x0fedfffff:   Normal memory (aperture 1)
@@ -60,17 +61,18 @@ struct cache_sample {
  * 0x121200000 -> 0x17fffffff:   Cache buffer, part 2, size = 0x5ee00000 (aperture 2) 
  */
 
-/* This vaiable is to keep track of the current buffer in use by the
+/*
+ * This variable is to keep track of the current buffer in use by the
  * module. It must be reset explicitly to prevent overwriting existing
- * data. */
+ * data.
+ */
 
 #define CACHE_BUF_BASE1 0x0fee00000UL
-#define CACHE_BUF_BASE2 0x121200000UL
-
-#define CACHE_BUF_END1 0x0fee00000UL
-
+#define CACHE_BUF_END1  0x0fee00000UL
 //#define CACHE_BUF_END1 0x100000000UL
-#define CACHE_BUF_END2 0x180000000UL
+
+#define CACHE_BUF_BASE2 0x121200000UL
+#define CACHE_BUF_END2  0x180000000UL
 
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
@@ -162,18 +164,17 @@ static int c_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/* This function returns a pointr to the ind-th sample in the
+/* This function returns a pointer to the ind-th sample in the
  * buffer. */
 static inline struct cache_sample * sample_from_index(uint32_t ind)
 {
-	if (ind < CACHE_BUF_COUNT1)
+	if (ind < CACHE_BUF_COUNT1) {
 		return &__buf_start1[ind];
-
-	else if (ind < CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2)
+        } else if (ind < CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
 		return &__buf_start2[ind - CACHE_BUF_COUNT1];
-
-	else
+	} else {
 		return NULL;
+        }
 }
 
 static int acquire_snapshot(void)
@@ -217,13 +218,14 @@ static int acquire_snapshot(void)
 
 static int dumpcache_config(unsigned long cmd)
 {
-	/* Set the sample buffer accoridng to what passed from user
+	/* Set the sample buffer according to what was passed from user
 	 * space */
 	if(cmd & DUMPCACHE_CMD_SETBUF_SHIFT) {
 		uint32_t val = DUMPCACHE_CMD_VALUE(cmd);
 
-		if(val >= CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2)
+		if (val >= CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
 			return -ENOMEM;
+                }
 		
 		cur_buf = val;
 		cur_sample = sample_from_index(val);	       
@@ -456,8 +458,9 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 
 	for (way = 0; way < WAYS; way++) {
 		get_tag(index, way, &physical_address);
-		if (!physical_address)
+		if (!physical_address) {
 			continue;
+                }
 
 		derived_page = phys_to_page(((u64)physical_address << 1));
 
@@ -492,8 +495,9 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 
 	for (way = 0; way < WAYS; way++) {
 		get_tag(index, way, &physical_address);
-		if (!physical_address)
+		if (!physical_address) {
 			continue;
+                }
 		
 		// Initalize struct
 		(buf->cachelines[way]).pid = 0; //process_data_struct->pid;// = 0;
@@ -508,10 +512,11 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
  * not been requested */
 static int dump_index(int index, struct cache_set* buf)
 {
-	if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT)
+	if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
 		return __dump_index_resolve(index, buf);
-	else
+	} else {
 		return __dump_index_noresolve(index, buf);
+        }
 }
 
 static int dump_all_indices(void) {
@@ -542,10 +547,16 @@ static int dumpcache_open(struct inode *inode, struct file *filp)
 int init_module(void)
 {
 	printk(KERN_INFO "dumpcache module is loaded cache_line.size=%ld cache_set.size=%ld cache_sample.size=%ld\n",
-            sizeof(struct cache_line),
-            sizeof(struct cache_set),
-            sizeof(struct cache_sample)
-            );
+          sizeof(struct cache_line),
+          sizeof(struct cache_set),
+          sizeof(struct cache_sample)
+          );
+	printk(KERN_INFO "CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=%ld CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=%ld\n",
+          CACHE_BUF_SIZE1,
+          CACHE_BUF_SIZE2,
+          CACHE_BUF_COUNT1,
+          CACHE_BUF_COUNT2);
+
 	dump_all_indices_done = 0;
 
 	pr_info("Initializing SHUTTER. Entries: Aperture1 = %ld, Aperture2 = %ld\n",
@@ -569,9 +580,14 @@ int init_module(void)
 	}
 	
 	/* Map buffer apertures to be accessible from kernel mode */
-	__buf_start1 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
-	__buf_start2 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+        if (CACHE_BUF_SIZE1 > 0) {
+          __buf_start1 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
+        }
+        if (CACHE_BUF_SIZE2 > 0) {
+          __buf_start2 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+        }
 
+        pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);
 	/* Check that we are all good! */
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
 		pr_err("Unable to io-remap buffer space.\n");
@@ -585,18 +601,19 @@ int init_module(void)
 	
 	/* Setup proc interface */
 	proc_create(MODNAME, 0644, NULL, &dumpcache_fops);
+        pr_info("load_module finished\n");
 	return 0;
 }
 
 void cleanup_module(void)
 {
 	printk(KERN_INFO "dumpcache module is unloaded\n");
-	if(__buf_start1) {
+	if (__buf_start1) {
 		iounmap(__buf_start1);
 		__buf_start1 = NULL;
 	}
 
-	if(__buf_start2) {
+	if (__buf_start2) {
 		iounmap(__buf_start2);
 		__buf_start2 = NULL;		
 	}	

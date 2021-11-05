@@ -19,7 +19,7 @@ all: clean e1_benchmark.x e1_benchmark1.x e1_benchmark2.x e2_benchmark.x snapsho
 .PHONY: run
 run: snapshot.x e1_benchmark.x | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	./snapshot.x -f -o data $(PWD)/e1_benchmark.x
+	sudo ./snapshot.x -n -m -f -o data $(PWD)/e1_benchmark.x
 data:
 	mkdir -p $@
 
