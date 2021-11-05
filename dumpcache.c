@@ -53,18 +53,15 @@ struct cache_sample {
 /*
  * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
  * large hole in the middle. Here is what the address space looks like
- * when the kernel is booted with mem=2560 (2.5 GB). 
- * 
+ * when the kernel is booted with mem=2560 (2.5 GB).
+ *
+ * block 1: 2.1Gbyte
  * 0x080000000 -> 0x0fedfffff:   Normal memory (aperture 1)
- * 0x0fee00000 -> 0x0ffffffff:   Cache buffer, part 1, size = 0x1200000 (aperture 1)
+ * 0x0fee00000 -> 0x0ffffffff:   Cache buffer, part 1, size = 0x01200000 (aperture 1)
+ *
+ * block 2: 2.1Gbyte
  * 0x100000000 -> 0x1211fffff:   Normal memory (aperture 2)
- * 0x121200000 -> 0x17fffffff:   Cache buffer, part 2, size = 0x5ee00000 (aperture 2) 
- */
-
-/*
- * This variable is to keep track of the current buffer in use by the
- * module. It must be reset explicitly to prevent overwriting existing
- * data.
+ * 0x121200000 -> 0x17fffffff:   Cache buffer, part 2, size = 0x5ee00000 (aperture 2)
  */
 
 #define CACHE_BUF_BASE1 0x0fee00000UL
@@ -80,7 +77,7 @@ struct cache_sample {
 #define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(struct cache_sample))
 #define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(struct cache_sample))
 
-#define DUMPCACHE_CMD_VALUE_WIDTH  16 
+#define DUMPCACHE_CMD_VALUE_WIDTH  16
 #define DUMPCACHE_CMD_VALUE_MASK   ((1 << DUMPCACHE_CMD_VALUE_WIDTH) - 1)
 #define DUMPCACHE_CMD_VALUE(cmd)		\
 	(cmd & DUMPCACHE_CMD_VALUE_MASK)
@@ -102,6 +99,12 @@ struct cache_sample {
 /* Command to enable/disable snapshot timestamping */
 #define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
+
+/*
+ * This variable is to keep track of the current buffer in use by the
+ * module. It must be reset explicitly to prevent overwriting existing
+ * data.
+ */
 
 static uint32_t cur_buf = 0;
 static unsigned long flags;
@@ -155,7 +158,7 @@ static int c_show(struct seq_file *m, void *v)
 	/* Make sure that the buffer has the right size */
 	m->size = sizeof(struct cache_sample) + 32;
 	m->buf = kvmalloc(sizeof(struct cache_sample) + 32, GFP_KERNEL);;
-	
+
 	/* Read buffer into sequential file interface */
 	if (seq_write(m, cur_sample, sizeof(struct cache_sample)) != 0) {
 		pr_info("Seq write returned non-zero value\n");
@@ -181,22 +184,22 @@ static int acquire_snapshot(void)
 {
 	int processor_id;
 	struct cpumask cpu_mask;
-	
+
 	/* Prepare cpu mask with all CPUs except current one */
 	processor_id = get_cpu();
 	cpumask_copy(&cpu_mask, cpu_online_mask);
 	cpumask_clear_cpu(processor_id, &cpu_mask); //processor_id, &cpu_mask);
-	
+
 	/* Acquire lock to spin other CPUs */
 	spin_lock(&snap_lock);
 	preempt_disable();
-	
+
 	/* Critical section! */
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
 	dump_all_indices();
-	
+
 	preempt_enable();
 	spin_unlock(&snap_lock);
 	put_cpu();
@@ -212,7 +215,7 @@ static int acquire_snapshot(void)
 		/* Set the pointer to the next available buffer */
 		cur_sample = sample_from_index(cur_buf);
 	}
-	
+
 	return 0;
 }
 
@@ -226,9 +229,9 @@ static int dumpcache_config(unsigned long cmd)
 		if (val >= CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
 			return -ENOMEM;
                 }
-		
+
 		cur_buf = val;
-		cur_sample = sample_from_index(val);	       
+		cur_sample = sample_from_index(val);
 	}
 
 	if (cmd & DUMPCACHE_CMD_GETBUF_SHIFT) {
@@ -242,10 +245,10 @@ static int dumpcache_config(unsigned long cmd)
 	}
 
 	if (cmd & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
-		flags |= DUMPCACHE_CMD_RESOLVE_EN_SHIFT;		
+		flags |= DUMPCACHE_CMD_RESOLVE_EN_SHIFT;
 	} else if (cmd & DUMPCACHE_CMD_RESOLVE_DIS_SHIFT) {
 		flags &= ~DUMPCACHE_CMD_RESOLVE_EN_SHIFT;
-	}	
+	}
 
 	return 0;
 }
@@ -255,7 +258,7 @@ static int dumpcache_config(unsigned long cmd)
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	long err;
-	
+
 	switch (ioctl) {
 	case DUMPCACHE_CMD_CONFIG:
 		err = dumpcache_config(arg);
@@ -264,13 +267,13 @@ static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long
 	case DUMPCACHE_CMD_SNAPSHOT:
 		err = acquire_snapshot();
 		break;
-		
+
 	default:
 		pr_err("Invalid command: 0x%08x\n", ioctl);
 		err = -EINVAL;
 		break;
 	}
-	
+
 	return err;
 }
 
@@ -281,7 +284,7 @@ static const struct seq_operations dumpcache_seq_ops = {
 	.stop	= c_stop,
 	.show	= c_show
 };
-	
+
 /* ProcFS entry setup and definitions  */
 static const struct file_operations dumpcache_fops = {
 	.owner = THIS_MODULE,
@@ -382,7 +385,7 @@ static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)
 {
-        
+
 	struct mm_struct* mm;
 	struct task_struct* ts;
 	struct process_data
@@ -422,7 +425,7 @@ bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long 
 int done_func(struct page *page)
 {
 	return 1;
-} 
+}
 
 
 bool invalid_func(struct vm_area_struct *vma, void *arg)
@@ -435,7 +438,7 @@ bool invalid_func(struct vm_area_struct *vma, void *arg)
 
 	((struct process_data*) arg)->pid = (pid_t)99999;
 	return false;
-} 
+}
 
 static int __dump_index_resolve(int index, struct cache_set* buf)
 {
@@ -447,7 +450,7 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 
 	/* This will be used to invoke address resolution */
 	struct cache_line process_data_struct;
-		
+
 	// Instantiate rmap walk control struct
 	rwc.arg = &process_data_struct;
 	rwc.rmap_one = rmap_one_func;
@@ -470,7 +473,7 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 
 		/* Reset address */
 		process_data_struct.addr = 0;
-		
+
 	        // This call populates the struct in rwc struct
 		rmap_walk_func(derived_page, rwc_p);
 
@@ -481,10 +484,10 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 			(buf->cachelines[way]).addr = process_data_struct.addr;
 #else
 			(buf->cachelines[way]).addr = process_data_struct.addr | (((u64)physical_address << 1) & 0xfff);
-#endif			
+#endif
 		}
 	}
-       
+
 	return 0;
 }
 
@@ -498,13 +501,13 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 		if (!physical_address) {
 			continue;
                 }
-		
+
 		// Initalize struct
 		(buf->cachelines[way]).pid = 0; //process_data_struct->pid;// = 0;
 		(buf->cachelines[way]).addr = ((u64)physical_address); //process_data_struct->addr;// = 0;
-		
+
 	}
-       
+
 	return 0;
 }
 
@@ -539,7 +542,7 @@ static int dumpcache_open(struct inode *inode, struct file *filp)
 		pr_err("Something went horribly wrong. Invalid buffer.\n");
 		return -EBADFD;
 	}
-	
+
 	ret = seq_open(filp, &dumpcache_seq_ops);
 	return ret;
 }
@@ -578,7 +581,7 @@ int init_module(void)
 			return -ENOSYS;
 		}
 	}
-	
+
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
           __buf_start1 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
@@ -593,12 +596,12 @@ int init_module(void)
 		pr_err("Unable to io-remap buffer space.\n");
 		return -ENOMEM;
 	}
-	
+
 	/* Set default flags, counter, and current sample buffer */
 	flags = 0;
 	cur_buf = 0;
 	cur_sample = sample_from_index(0);
-	
+
 	/* Setup proc interface */
 	proc_create(MODNAME, 0644, NULL, &dumpcache_fops);
         pr_info("load_module finished\n");
@@ -615,9 +618,9 @@ void cleanup_module(void)
 
 	if (__buf_start2) {
 		iounmap(__buf_start2);
-		__buf_start2 = NULL;		
-	}	
-		
+		__buf_start2 = NULL;
+	}
+
 	remove_proc_entry(MODNAME, NULL);
 }
 
