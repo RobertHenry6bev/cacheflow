@@ -1,7 +1,7 @@
 /*************************************************************/
 /*                                                           */
 /*  Unified code to launch benchmarks with periodic          */
-/*  snapshotting. This code was initially written by:        */
+/*  snap shotting. This code was initially written by:        */
 /*  Steven Brzozowski (BU)                                   */
 /*  Major rev. by: Dharmesh Tarapore (BU)                    */
 /*  Major rev. by: Renato Mancuso (BU)                       */
@@ -27,24 +27,24 @@
 #define USAGE_STR "Usage: %s [-rmafi] [-o outpath] [-p period_ms] "	\
 	"\"benchmark 1\", ..., \"benchmark n\"\n"			\
 	"Options:\n"							\
-	"-r\tSet real-time priorities. Parent has highest priority,\n"	\
-	"  \tthe priority of the benchmarks is set in decreasing order.\n" \
+	"-r\t" "Set real-time priorities. Parent has highest priority,\n"	\
+	"  \t" "the priority of the benchmarks is set in decreasing order.\n" \
 	"\n"								\
-	"-m\tMimic only. No cache snapshotting but do everything else.\n" \
+	"-m\t" "Mimic only. No cache snapshotting but do everything else.\n" \
 	"\n"								\
-	"-a\tAsynchrnonous mode. Do not send SIGTOP/SIGCONT to benchmarks.\n" \
+	"-a\t" "Asynchrnonous mode. Do not send SIGTOP/SIGCONT to benchmarks.\n" \
 	"\n"								\
-	"-f\tForce output. Overwrite content of output directory.\n"	\
+	"-f\t" "Force output. Overwrite content of output directory.\n"	\
 	"\n"								\
-	"-i\tIsolation mode. Pin parent alone on CPU "STR(PARENT_CPU)".\n" \
+	"-i\t" "Isolation mode. Pin parent alone on CPU "STR(PARENT_CPU)".\n" \
 	"\n" \
-	"-o\tOutput files to custom directory instead of " SCRATCHSPACE_DIR ".\n" \
+	"-o\t" "Output files to custom directory instead of " SCRATCHSPACE_DIR ".\n" \
 	"\n" \
-	"-p\tSet custom period between samples expressed in msec. Default is " STR(SNAP_PERIOD_MS) " msec.\n\n" \
-	"-n\tDo not perform physical->virtual address translation in the kernel.\n\n" \
-	"-t\tOperate in transparent mode, i.e. defer acquisition of samples to disk to the end.\n\n" \
-	"-l\tDo not acquire the memory layout of the observed benchmarks.\n\n" \
-        "-h\tOperate in overhead measurement mode. Only 2 back-to-back snapshots will be acquired.\n" \
+	"-p\t" "Set custom period between samples expressed in msec. Default is " STR(SNAP_PERIOD_MS) " msec.\n\n" \
+	"-n\t" "Do not perform physical->virtual address translation in the kernel.\n\n" \
+	"-t\t" "Operate in transparent mode, i.e. defer acquisition of samples to disk to the end.\n\n" \
+	"-l\t" "Do not acquire the memory layout of the observed benchmarks.\n\n" \
+        "-h\t" "Operate in overhead measurement mode. Only 2 back-to-back snapshots will be acquired.\n" \
 	"\n"
 
 #define MS_TO_NS(ms) \
