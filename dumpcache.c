@@ -68,8 +68,10 @@ struct cache_sample {
 #define CACHE_BUF_END1  0x0fee00000UL
 //#define CACHE_BUF_END1 0x100000000UL
 
-#define CACHE_BUF_BASE2 0x121200000UL
-#define CACHE_BUF_END2  0x180000000UL
+//#define CACHE_BUF_BASE2 0x121200000UL
+//#define CACHE_BUF_END2  0x180000000UL
+#define CACHE_BUF_BASE2 0x080000000UL  // pi4 with /boot/firmware/usercfg.txt with total_mem=2048
+#define CACHE_BUF_END2  0x100000000UL
 
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
@@ -585,9 +587,13 @@ int init_module(void)
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
           __buf_start1 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
+        } else {
+          __buf_start1 = (struct cache_sample *) 0;
         }
         if (CACHE_BUF_SIZE2 > 0) {
           __buf_start2 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+        } else {
+          __buf_start2 = (struct cache_sample *) 0;
         }
 
         pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);
