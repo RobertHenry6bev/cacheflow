@@ -70,9 +70,12 @@ struct cache_sample {
 
 //#define CACHE_BUF_BASE2 0x121200000UL
 //#define CACHE_BUF_END2  0x180000000UL
-#define CACHE_BUF_BASE2 (0x07fffffffUL+1)  // new upper bound from /proc/iomem (rasp pi 4 4GB out of the box, edited boot/firmware/usercfg.txt)
-// #define CACHE_BUF_END2  (0x0fbffffffUL+1)  // old upper bound from /proc/iomem (rasp pi 4 4GB out of the box)
-#define CACHE_BUF_END2  (CACHE_BUF_BASE2 + (128 << 20))
+
+// 40000000-5fffffff  // from /proc/iomem with changes to dts
+#define CACHE_BUF_BASE2 (0x040000000UL+0)
+// #define CACHE_BUF_END2  (0x05fffffffUL+1)
+// #define CACHE_BUF_END2  (0x050ffffffUL+1)
+#define CACHE_BUF_END2     (0x043ffffffUL+1)
 
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
@@ -602,7 +605,7 @@ int init_module(void)
         pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);
 	/* Check that we are all good! */
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
-		pr_err("Unable to io-remap buffer space.\n");
+		pr_err("Unable to ioremap_nocache buffer space.\n");
 		return -ENOMEM;
 	}
 
