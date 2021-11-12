@@ -72,10 +72,17 @@ struct cache_sample {
 //#define CACHE_BUF_END2  0x180000000UL
 
 // 40000000-5fffffff  // from /proc/iomem with changes to dts
-#define CACHE_BUF_BASE2 (0x040000000UL+0)
+// #define CACHE_BUF_BASE2 (0x040000000UL+0)
 // #define CACHE_BUF_END2  (0x05fffffffUL+1)
 // #define CACHE_BUF_END2  (0x050ffffffUL+1)
-#define CACHE_BUF_END2     (0x043ffffffUL+1)
+// #define CACHE_BUF_END2  (0x043ffffffUL+1)
+// #define CACHE_BUF_END2  (0x0403fffffUL+1)
+
+// #define CACHE_BUF_BASE2 (0xc0000000UL)  // from reserved-memory/cachelow
+// #define CACHE_BUF_END2  (0xc03fffffUL+1)
+
+   #define CACHE_BUF_BASE2 (0x80000000UL)    // from memreserve block at top
+   #define CACHE_BUF_END2  (0x83ffffffUL+1)
 
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)

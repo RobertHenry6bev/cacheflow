@@ -19,9 +19,10 @@ ls -l /lib/firmware/5.4.0-1045-raspi/device-tree/broadcom/bcm2711-rpi-4-b.dtb
 ls -l /boot/firmware/bcm2711-rpi-4-b.dtb
 ls -l original.dtb
 
-# dtc -I dtb -O dts -o installed.dts /boot/firmware/bcm2711-rpi-4-b.dtb
-dtc -I dts -O dtb -o new_installed.dtb installed.dts
-sudo cp -p new_installed.dtb /boot/firmware/bcm2711-rpi-4-b.dtb
+dtc -I dtb -O dts -o original.dts /lib/firmware/5.4.0-1045-raspi/device-tree/broadcom/bcm2711-rpi-4-b.dtb
+exit 0
+dtc -I dts -O dtb -o new.dtb new.dts
+sudo cp -p new.dtb /boot/firmware/bcm2711-rpi-4-b.dtb
 exit 0
 
 FLAT_DTS=bcm2711-rpi-4-b.dts
@@ -32,7 +33,7 @@ if [ ! -e ${FLAT_DTS} ] ; then
 fi
 dtc -I dts -O dtb -o ${FLAT_DTB} ${FLAT_DTS}
 dtc -I dtb -O dts -o computed.dts ${FLAT_DTB}
-# diff installed.dts conputed.dts
+# diff new.dts conputed.dts
 
 sudo cp ${FLAT_DTB} /boot/firmware/bcm2711-rpi-4-b.dtb
 

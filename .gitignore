@@ -1,3 +1,4 @@
+FILES
 .DS_Store
 .dumpcache*
 junk*
@@ -11,3 +12,4 @@ modules.order
 .*.swp
 *.dtb
 *.dts
+*.tar.gz

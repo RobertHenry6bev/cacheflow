@@ -57,6 +57,4 @@ fec11000-fec1101f : fe100000.watchdog watchdog@7e100000
   600000000-6000fffff : PCI Bus 0000:01
     600000000-600000fff : 0000:01:00.0
       600000000-600000fff : xhci-hcd
-
-
 ```
