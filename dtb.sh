@@ -20,25 +20,20 @@ ls -l /boot/firmware/bcm2711-rpi-4-b.dtb
 ls -l original.dtb
 
 dtc -I dtb -O dts -o original.dts /lib/firmware/5.4.0-1045-raspi/device-tree/broadcom/bcm2711-rpi-4-b.dtb
-exit 0
+
+dtc -I dtb -O dts -o overlay_map.dts /boot/firmware/overlay_map.dtb
+
+#
+# Human edits new.dts
+#
 dtc -I dts -O dtb -o new.dtb new.dts
-sudo cp -p new.dtb /boot/firmware/bcm2711-rpi-4-b.dtb
+sudo cp -p new.dtb /boot/firmware/bcm2711-rpi-4-b.dtb  || true  # there will be permission errors
+
+#
+# Check if compile/decompile yields a fixpoint (it should, modulo spacing and comments in the original text)
+#
+dtc -I dtb -O dts -o new.decompile.out /boot/firmware/bcm2711-rpi-4-b.dtb
+diff new.dts new.decompile.out
+echo "no diffs"
+
 exit 0
-
-FLAT_DTS=bcm2711-rpi-4-b.dts
-FLAT_DTB=bcm2711-rpi-4-b.dtb
-if [ ! -e ${FLAT_DTS} ] ; then
-  # Built from rasppi4 linux source
-  scp robhenry@qtm-ubnt-02:/home/robhenry/git-work-e2/robhenry-perf/cache_contents/${FLAT_DTS} ${FLAT_DTS}
-fi
-dtc -I dts -O dtb -o ${FLAT_DTB} ${FLAT_DTS}
-dtc -I dtb -O dts -o computed.dts ${FLAT_DTB}
-# diff new.dts conputed.dts
-
-sudo cp ${FLAT_DTB} /boot/firmware/bcm2711-rpi-4-b.dtb
-
-sum /boot/dtbs/5.4.0-1045-raspi/bcm2711-rpi-4-b.dtb
-sum /lib/firmware/5.4.0-1045-raspi/device-tree/broadcom/bcm2711-rpi-4-b.dtb
-sum /boot/firmware/bcm2711-rpi-4-b.dtb
-sum original.dtb
-sum ${FLAT_DTB}

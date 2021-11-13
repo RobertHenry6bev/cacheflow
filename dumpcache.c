@@ -3,6 +3,7 @@
 #include <asm/page.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>  // for memremap
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -78,11 +79,21 @@ struct cache_sample {
 // #define CACHE_BUF_END2  (0x043ffffffUL+1)
 // #define CACHE_BUF_END2  (0x0403fffffUL+1)
 
-// #define CACHE_BUF_BASE2 (0xc0000000UL)  // from reserved-memory/cachelow
-// #define CACHE_BUF_END2  (0xc03fffffUL+1)
+// #define CACHE_BUF_BASE2 (0xc0000000UL)  // from reserved-memory/cachelow  Renato
+// #define CACHE_BUF_END2  (0xc03fffffUL+1)  // Renato
 
-   #define CACHE_BUF_BASE2 (0x80000000UL)    // from memreserve block at top
-   #define CACHE_BUF_END2  (0x83ffffffUL+1)
+// this hung when the app was run
+// #define CACHE_BUF_BASE2 (0x3b3fffffUL+1)
+// #define CACHE_BUF_END2  (0x40000000UL)
+
+// #define CACHE_BUF_BASE2 (0x80000000UL)    // from memreserve block at top (didn't work)
+// #define CACHE_BUF_END2  (0x83ffffffUL+1)
+
+// inelegant way to make kernel args include mem=3968M (per Renato)
+// Edit files /boot/firmware/btcmd.txt  /boot/firmware/nobtcmd.txt
+
+#define CACHE_BUF_BASE2 (0xfaffffffUL+1)  //
+#define CACHE_BUF_END2  (0xfbffffffUL+1)  //
 
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
@@ -603,7 +614,12 @@ int init_module(void)
           __buf_start1 = (struct cache_sample *) 0;
         }
         if (CACHE_BUF_SIZE2 > 0) {
+#if 1
           __buf_start2 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+#else
+          __buf_start2 = (struct cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
+#endif
+
           pr_info("__buf_start2 = 0x%p from 0x%016lx for %ld\n", __buf_start2, CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
         } else {
           __buf_start2 = (struct cache_sample *) 0;
