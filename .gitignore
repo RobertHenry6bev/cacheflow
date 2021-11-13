@@ -13,3 +13,4 @@ modules.order
 *.dtb
 *.dts
 *.tar.gz
+tags

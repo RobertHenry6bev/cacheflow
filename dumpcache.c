@@ -29,6 +29,8 @@
 
 #define FULL_ADDRESS 0
 
+#define DO_ASM 1
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
@@ -211,6 +213,8 @@ static int acquire_snapshot(void)
 
 	/* Prepare cpu mask with all CPUs except current one */
 	processor_id = get_cpu();
+        // printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
+
 	cpumask_copy(&cpu_mask, cpu_online_mask);
 	cpumask_clear_cpu(processor_id, &cpu_mask); //processor_id, &cpu_mask);
 
@@ -282,6 +286,7 @@ static int dumpcache_config(unsigned long cmd)
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	long err;
+        // printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld\n", ioctl, arg);
 
 	switch (ioctl) {
 	case DUMPCACHE_CMD_CONFIG:
@@ -392,6 +397,8 @@ static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 {
 	u32 ramid    = 0x10;
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
+
+	// printk(KERN_INFO "__get_tag %d %d, %p\n", index, way, dl1data);
 
 	asm_ramindex_mcr(ramindex);
 	asm_ramindex_mrc(dl1data, 0x01);
@@ -519,6 +526,7 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 {
 	int way;
 	u32 physical_address;
+	// printk(KERN_INFO "__dump_index_noresolve %d %p\n", index, buf);
 
 	for (way = 0; way < WAYS; way++) {
 		get_tag(index, way, &physical_address);
@@ -539,6 +547,7 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
  * not been requested */
 static int dump_index(int index, struct cache_set* buf)
 {
+        // printk(KERN_INFO "dump_index %d %p\n", index, buf);
 	if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
 		return __dump_index_resolve(index, buf);
 	} else {
@@ -548,6 +557,7 @@ static int dump_index(int index, struct cache_set* buf)
 
 static int dump_all_indices(void) {
 	int i = 0;
+        // printk(KERN_INFO "dump_all_indices\n");
 	for (i = 0; i < CACHESETS_TO_WRITE; i++) {
 		if (dump_index(i, &cur_sample->sets[i]) == 1){
 			printk(KERN_INFO "Error dumping index: %d", i);
@@ -639,7 +649,7 @@ int init_module(void)
 
 	/* Setup proc interface */
 	proc_create(MODNAME, 0644, NULL, &dumpcache_fops);
-        pr_info("load_module finished\n");
+        pr_info("load_module finished CCC\n");
 	return 0;
 }
 
