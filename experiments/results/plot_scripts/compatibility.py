@@ -14,7 +14,7 @@ import os
 import os.path
 import sys
 import numpy as np
-import commands
+import subprocess
 import operator
 import shutil
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ reuse={}
 tot_lines = float(2 * 1024 * 1024 / 64)
 
 def plot_quota(b, ax):
-    x = range(1, len(quotas[b])+1)
+    x = list(range(1, len(quotas[b])+1))
     y = quotas[b]
 
     ax.set(title=(b + " - Active"), ylabel='L2 lines (%)')
@@ -41,7 +41,7 @@ def plot_quota(b, ax):
     plt.setp(ax.get_xticklabels(), visible=False)
 
 def plot_reuse(b, ax):
-    x = range(1, len(reuse[b])+1)
+    x = list(range(1, len(reuse[b])+1))
     y = reuse[b]
     
     ax.set(title=(b + " - Reused"))
@@ -107,7 +107,7 @@ for b in bms:
             
         max_quota = 1.0 * len(b_spect.dumps)
         
-        print "BM %s intefered by %s: %f (reused = %f)" % (b, a, float(tot_quota) / max_quota, float(tot_reused) / max_quota)
+        print("BM %s intefered by %s: %f (reused = %f)" % (b, a, float(tot_quota) / max_quota, float(tot_reused) / max_quota))
 
 i = 1
 for b in bms:

@@ -16,7 +16,7 @@ def mean_confidence_interval(data, confidence=0.95):
 cached = []
 fig = plt.figure(figsize=(6, 3))
 
-plt.xticks(range(0,17))
+plt.xticks(list(range(0,17)))
 #plt.title('Probability of X Lines Cached after Y Iterations')
 
 plots = 8
@@ -37,7 +37,7 @@ for l in f.readlines():
         if (idx == 16):
             if len(rnd) == 16:
                 rounds.append(list(rnd))
-                print rnd
+                print(rnd)
             rnd = []      
             idx = 0
         else:
@@ -55,8 +55,8 @@ for w in range(len(ways)):
     ways[w] = ways[w]/float(total)
 
     
-plt.bar(range(1,17), ways, label="Observed Replacement")
-plt.plot(range(0,18), [float(1.0/16)]*18, ls=":", color="red", label="Ideal Replacement")
+plt.bar(list(range(1,17)), ways, label="Observed Replacement")
+plt.plot(list(range(0,18)), [float(1.0/16)]*18, ls=":", color="red", label="Ideal Replacement")
 plt.legend(ncol=2, loc="upper center", borderaxespad=0.,
            bbox_to_anchor=(0., 1.02, 1., .102),)
 plt.xlim(0.3,16.7)

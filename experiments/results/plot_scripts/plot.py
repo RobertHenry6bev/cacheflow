@@ -14,7 +14,7 @@ import os
 import os.path
 import sys
 import numpy as np
-import commands
+import subprocess
 import operator
 import shutil
 import matplotlib.pyplot as plt
@@ -43,7 +43,7 @@ def autoselect_regions(spect, pid, count):
     totals = [x[0] for x in totals]
 
     # Compute appropriate horizontal ratios
-    print ranges
+    print(ranges)
     
     # return total and horizontal ratios
     return (totals, ranges)
@@ -58,7 +58,7 @@ def plot_spectrum(spect, pid, path, scale = 1.5):
     # Select regions to plot, expressed as IDs
     sel_regions, h_r = autoselect_regions(spect, pid, 4)
 
-    print "Regions: " + str(sel_regions)
+    print("Regions: " + str(sel_regions))
     # Select ratios for regions
     #h_r = [1, 1, 2, 5]
     
@@ -121,14 +121,14 @@ def plot_spectrum_region(spect, pid, region, axs, col = "r", reg_scale = 1, poin
             if max_y == None or max_y < cur_max:
                 max_y = cur_max
 
-    print hex(min_y)
-    print hex(max_y)
+    print(hex(min_y))
+    print(hex(max_y))
 
     axs.set_xlim((-0.5, len(spect.dumps)-0.5))
     
     axs.set_xlabel("Snapshot #")
 
-    print "%i) MAX %i - MIN %i" % (region, max_y, min_y)
+    print("%i) MAX %i - MIN %i" % (region, max_y, min_y))
     
     # Select multiple locato for axis depending on size of axis
     if (max_y - min_y > 3 and reg_scale < 2):
@@ -202,8 +202,8 @@ def plot_spectrum_region_heatm(spect, pid, region, axs, col = "r", reg_scale = 1
             if max_y == None or max_y < cur_max:
                 max_y = cur_max
 
-    print hex(min_y)
-    print hex(max_y)
+    print(hex(min_y))
+    print(hex(max_y))
 
     axs.hist2d(x, y, normed=True, bins=[len(spect.dumps), min(max_y - min_y + 1, 50)], \
                norm=mcolors.PowerNorm(0.3), range=[(-0.5, len(spect.dumps)-0.5), (min_y, max_y)])
@@ -212,7 +212,7 @@ def plot_spectrum_region_heatm(spect, pid, region, axs, col = "r", reg_scale = 1
     
     axs.set_xlabel("Snapshot #")
 
-    print "%i) MAX %i - MIN %i" % (region, max_y, min_y)
+    print("%i) MAX %i - MIN %i" % (region, max_y, min_y))
     
     # Select multiple locato for axis depending on size of axis
     if (max_y - min_y > 3 and reg_scale < 2):
@@ -311,7 +311,7 @@ def __plot_multipid_single(spect, pids, axs, plot_count, captions = [], bw = 0, 
             
         idx += 1
 
-    print captions
+    print(captions)
         
     cmap=plt.get_cmap("viridis", len(pids))
 
@@ -660,4 +660,4 @@ if __name__ == '__main__':
             #cp_plots_to_paper()
         
     else:
-        print(sys.argv[0] + " /proc/<pid>/maps")
+        print((sys.argv[0] + " /proc/<pid>/maps"))
