@@ -235,7 +235,7 @@ int main (int argc, char ** argv)
 		free(__cmd);
 	} else {
 		/* The directory does not exist. */
-		mkdir(outdir, 0700);
+		mkdir(outdir, 0666);
 	}
 	
 	/* ALWAYS run the parent with top RT priority */
@@ -419,7 +419,7 @@ void copy_file(char * src, char * dst)
 	if (src_fd < 0)
 		return;
 
-	int dst_fd = open(dst, O_RDWR | O_CREAT | O_TRUNC, 0700);
+	int dst_fd = open(dst, O_RDWR | O_CREAT | O_TRUNC, 0666);
 
 	if (dst_fd < 0) {
 		perror("Unable to save maps file.");
@@ -494,7 +494,7 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 		/* Unless we are in transparent mode, save cache dump
 		 * to file right away */
 		if (!flag_transparent) {
-			sprintf(__cmd, "%s/cachedump%d.csv", outdir, snapshots);
+			sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
 
 			/* In non-transparent mode, no autoincrement
 			 * is selected in the kernel, so we always
@@ -507,7 +507,7 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 	if (flag_bm_layout) {
 		/* Initiate a /proc/pid/maps dump to file */
 		for (i = 0; i < bm_count; ++i) {
-			sprintf(__cmd, "%s/%d-%d.txt", outdir, pids[i], snapshots);
+			sprintf(__cmd, "%s/%d-%04d.txt", outdir, pids[i], snapshots);
 			sprintf(__proc_entry, "/proc/%d/maps", pids[i]);
 			copy_file(__proc_entry, __cmd);
 		}
@@ -566,7 +566,7 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 		/* Unless we are in transparent mode, save cache dump
 		 * to file right away */
 		if (!flag_transparent) {
-			sprintf(__cmd, "%s/cachedump%d.csv", outdir, snapshots);
+			sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
 
 			/* In non-transparent mode, no autoincrement
 			 * is selected in the kernel, so we always
@@ -627,7 +627,7 @@ void wrap_up (void)
 				"value. Possible overflow?\n");
 		
 		for (i = 0; i < retval; ++i) {
-			sprintf(pathname, "%s/cachedump%d.csv", outdir, i);
+			sprintf(pathname, "%s/cachedump%04d.csv", outdir, i);
 			read_cache_to_file(pathname, i);
 		}		
 
@@ -635,7 +635,7 @@ void wrap_up (void)
 	
 	/* Now create pids file with metadata about the acquisition */
 	sprintf(pathname, "%s/pids.txt", outdir);
-	pids_fd = open(pathname, O_CREAT | O_TRUNC | O_RDWR, 0700);
+	pids_fd = open(pathname, O_CREAT | O_TRUNC | O_RDWR, 0666);
 
 	if (pids_fd < 0) {
 		perror("Unable to write pids file");
@@ -865,11 +865,9 @@ void read_cache_to_file(char * filename, int index) {
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
 		for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
 			bytes_to_write += sprintf(csv_file_buf + bytes_to_write,
-						  "%05d,0x%012lx\n",
-						  cache_contents->sets[cache_set_idx]
-						  .cachelines[cache_line_idx].pid,
-						  cache_contents->sets[cache_set_idx]
-						  .cachelines[cache_line_idx].addr);
+                            "%05d,0x%012lx\n",
+                            cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].pid,
+                            cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].addr);
 			
 			/* Flush out pending data */			
 			if (bytes_to_write >= WRITE_SIZE){				

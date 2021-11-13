@@ -6,7 +6,7 @@ int main() {
 	int iterations = 0;
 	buf = (char*) malloc(BASE_BUFFSIZE_MB * 1024 * 1024);
 	while (iterations < NUM_ITERATIONS) {
-		// Write to 1 mb buffer
+		// Write to 1 Mb buffer
 		//printf("I want to write %.2f of the buffer\r\n", ((float)iterations+1)/NUM_ITERATIONS);
 		//BASE_BUFFSIZE_MB * 1024 * 1024
 		for (i = 0; i < (((float)iterations+1)/NUM_ITERATIONS) * (BASE_BUFFSIZE_MB * 1024 * 1024); i = i + 4) {
@@ -43,7 +43,7 @@ int main() {
 // 	int iterations = 0;
 // 	buf = (char*) malloc((BASE_BUFFSIZE_MB / 4) * 1024 * 1024);
 // 	while (iterations < (NUM_ITERATIONS * 4)) {
-// 		// Write to 1 mb buffer
+// 		// Write to 1 Mb buffer
 // 		for (i = 0; i < ((iterations + 1)/(BASE_BUFFSIZE_MB)) * (BASE_BUFFSIZE_MB / 4) * 1024 * 1024; i = i + 4) {
 // 			buf[i]     = '\xFE';
 // 			buf[i + 1] = '\xCA';

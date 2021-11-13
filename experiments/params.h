@@ -33,7 +33,7 @@
 //#define NUM_SD_VBS_BENCHMARKS_DATASETS 2
 
 
-// Struct representing a single cache line - each cacheline struct is 68 bytes
+// Struct representing a single cache line - each cacheline struct is 12(?) bytes
 struct cache_line
 {
 	pid_t pid;
