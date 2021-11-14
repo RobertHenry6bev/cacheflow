@@ -13,10 +13,6 @@
 #define __STR(x) #x
 #define STR(x) __STR(x)
 
-// Each cache set/way coordinate has a 1-5 digit pid followed by a
-// comma then 12 digit tag prepended with '0x' and ended with a newline
-#define CSV_LINE_SIZE 5 + 1 + (2 + 12) + 1
-#define WRITE_SIZE 35 * 1024 // 32 kb (8 4kb pages)
 #define NUM_CACHESETS 2048
 #define CACHESIZE 1024*1024*2
 #define NUM_CACHELINES 16

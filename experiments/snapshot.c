@@ -820,17 +820,15 @@ void wait_completion(void)
 
 /* Entry function to interface with the kernel module via the proc interface */
 void read_cache_to_file(char * filename, int index) {
-	int outfile;
 	int dumpcache_fd;
-	int bytes_to_write = 0;
 	struct cache_sample * cache_contents;
 	
-	char csv_file_buf[WRITE_SIZE + 10*CSV_LINE_SIZE];
 	int cache_set_idx, cache_line_idx;
 	
 	cache_contents = NULL;
-	
-	if (((outfile = open(filename, O_CREAT | O_WRONLY | O_SYNC | O_TRUNC, 0666)) < 0)) {
+
+        FILE *outfp = fopen(filename, "w");
+        if (outfp == NULL) {
 		perror("Failed to open outfile");
 		exit(EXIT_FAILURE);
 	}
@@ -864,28 +862,13 @@ void read_cache_to_file(char * filename, int index) {
 	
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
 		for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
-			bytes_to_write += sprintf(csv_file_buf + bytes_to_write,
+                        fprintf(outfp,
                             "%05d,0x%012lx\n",
                             cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].pid,
                             cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].addr);
-			
-			/* Flush out pending data */			
-			if (bytes_to_write >= WRITE_SIZE){				
-				if (write(outfile, csv_file_buf, bytes_to_write) == -1) {
-					perror("Failed to write to outfile");
-				}
-				bytes_to_write = 0;
-			}
 		}   
 	}
 	
-	/* Flush out leftover buffer data */
-	if (bytes_to_write){
-		if (write(outfile, csv_file_buf, bytes_to_write) == -1) {
-			perror("Failed to write to outfile");
-		}
-	}
-	
-	close(outfile);
+	fclose(outfp);
 	close(dumpcache_fd);
 }
