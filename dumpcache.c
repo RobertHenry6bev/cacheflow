@@ -3,7 +3,7 @@
 #include <asm/page.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/io.h>  // for memremap
+#include <linux/io.h>
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -13,8 +13,10 @@
 #include <linux/rmap.h>
 #include <linux/seq_file.h>
 #include <linux/smp.h>
+#include <linux/rmap.h>
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
+#include <linux/version.h>
 
 /* Global Defines */
 #define CACHESETS_TO_WRITE 2048
@@ -315,7 +317,18 @@ static const struct seq_operations dumpcache_seq_ops = {
 };
 
 /* ProcFS entry setup and definitions  */
-static const struct file_operations dumpcache_fops = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+static const struct proc_ops dumpcache_ops = {
+	// .owner = THIS_MODULE,
+	// .proc_unlocked_ioctl = dumpcache_ioctl,
+	.proc_compat_ioctl   = dumpcache_ioctl,
+	.proc_open    = dumpcache_open,
+	.proc_read    = seq_read,
+	.proc_lseek	 = seq_lseek,
+	.proc_release = seq_release
+};
+#else
+static const struct file_operations dumpcache_ops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = dumpcache_ioctl,
 	.compat_ioctl = dumpcache_ioctl,
@@ -324,6 +337,7 @@ static const struct file_operations dumpcache_fops = {
 	.llseek	 = seq_lseek,
 	.release = seq_release
 };
+#endif
 
 //
 // Raspberry Pi 4B has ARM Cortex-A72 in it
@@ -601,12 +615,20 @@ int init_module(void)
 
 	/* Resolve the rmap_walk_func required to resolve physical
 	 * address to virtual addresses */
+        // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
 	if (!rmap_walk_func) {
 		/* Attempt to find symbol */
 		preempt_disable();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
 		mutex_lock(&module_mutex);
+#endif
+                //
+                // kallsyms_lookup_name only known < VERSION(5,7,0)
+                //
 		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
 		mutex_unlock(&module_mutex);
+#endif
 		preempt_enable();
 
 		/* Have we found a valid symbol? */
@@ -615,17 +637,22 @@ int init_module(void)
 			return -ENOSYS;
 		}
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
+  #define dumpcache_ioremap ioremap_nocache
+#else
+  #define dumpcache_ioremap ioremap_cache // despite the name, it apparently does no caching
+#endif
 
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
-          __buf_start1 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
+          __buf_start1 = (struct cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
           pr_info("__buf_start1 = 0x%p from 0x%016lx for %ld\n", __buf_start1, CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
         } else {
           __buf_start1 = (struct cache_sample *) 0;
         }
         if (CACHE_BUF_SIZE2 > 0) {
 #if 1
-          __buf_start2 = (struct cache_sample *) ioremap_nocache(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+          __buf_start2 = (struct cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
 #else
           __buf_start2 = (struct cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
 #endif
@@ -638,7 +665,7 @@ int init_module(void)
         pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);
 	/* Check that we are all good! */
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
-		pr_err("Unable to ioremap_nocache buffer space.\n");
+		pr_err("Unable to dumpcache_ioremap buffer space.\n");
 		return -ENOMEM;
 	}
 
@@ -648,7 +675,7 @@ int init_module(void)
 	cur_sample = sample_from_index(0);
 
 	/* Setup proc interface */
-	proc_create(MODNAME, 0644, NULL, &dumpcache_fops);
+	proc_create(MODNAME, 0644, NULL, &dumpcache_ops);
         pr_info("load_module finished CCC\n");
 	return 0;
 }
