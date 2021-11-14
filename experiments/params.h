@@ -1,3 +1,6 @@
+#ifndef __CACHEFLOW_EXPERIMENTS_PARAMS_H
+#define __CACHEFLOW_EXPERIMENTS_PARAMS_H
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -13,9 +16,6 @@
 #define __STR(x) #x
 #define STR(x) __STR(x)
 
-#define NUM_CACHESETS 2048
-#define CACHESIZE 1024*1024*2
-#define NUM_CACHELINES 16
 #define PROC_FILENAME "/proc/dumpcache"
 
 #define SCRATCHSPACE_DIR "/tmp/dumpcache"
@@ -28,51 +28,9 @@
 /* Set to 7 to run all */
 //#define NUM_SD_VBS_BENCHMARKS_DATASETS 2
 
-
-// Struct representing a single cache line - each cacheline struct is 12(?) bytes
-struct cache_line
-{
-	pid_t pid;
-	uint64_t addr;
-};
-
-struct cache_set {
-	struct cache_line cachelines[NUM_CACHELINES];
-};
-
-struct cache_sample {
-	struct cache_set sets[NUM_CACHESETS];
-};
-
 #define NUM_ITERATIONS 3
 #define BASE_BUFFSIZE_MB 2.0
 
+#include "../params_kernel.h"
 
-/* Defines for commands to the kernel module */
-/* Command to access the configuration interface */
-#define DUMPCACHE_CMD_CONFIG _IOW(0, 0, unsigned long)
-/* Command to initiate a cache dump */
-#define DUMPCACHE_CMD_SNAPSHOT _IOW(0, 1, unsigned long)
-
-#define DUMPCACHE_CMD_VALUE_WIDTH  16 
-#define DUMPCACHE_CMD_VALUE_MASK   ((1 << DUMPCACHE_CMD_VALUE_WIDTH) - 1)
-#define DUMPCACHE_CMD_VALUE(cmd)		\
-	(cmd & DUMPCACHE_CMD_VALUE_MASK)
-
-/* Command to set the current buffer number */
-#define DUMPCACHE_CMD_SETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 1))
-
-/* Command to retrievet the current buffer number */
-#define DUMPCACHE_CMD_GETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 2))
-
-/* Command to enable/disable buffer autoincrement */
-#define DUMPCACHE_CMD_AUTOINC_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 3))
-#define DUMPCACHE_CMD_AUTOINC_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 4))
-
-/* Command to enable/disable address resolution */
-#define DUMPCACHE_CMD_RESOLVE_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 5))
-#define DUMPCACHE_CMD_RESOLVE_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 6))
-
-/* Command to enable/disable snapshot timestamping */
-#define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
-#define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
+#endif  // __CACHEFLOW_EXPERIMENTS_PARAMS_H

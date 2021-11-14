@@ -118,7 +118,7 @@ int main (int argc, char ** argv)
 	/* Parse command line */
 	int opt, res;
 	struct stat dir_stat;
-	
+
 	while ((opt = getopt(argc, argv, "-rmafio:p:ntlh")) != -1) {
 		switch (opt) {
 		case 1:
@@ -129,7 +129,7 @@ int main (int argc, char ** argv)
 		}
 		case 'r':
 		{
-			/* RT scheduler requested */			
+			/* RT scheduler requested */
 			flag_rt = 1;
 			break;
 		}
@@ -155,36 +155,36 @@ int main (int argc, char ** argv)
 		}
 		case 'f':
 		{
-			/* Override content of outdir !!! CAREFUL */			
+			/* Override content of outdir !!! CAREFUL */
 			flag_force = 1;
 			break;
 		}
 		case 'p':
 		{
-			/* Set custom sampling period in ms */			
+			/* Set custom sampling period in ms */
 			snap_period_ms = strtol(optarg, NULL, 10);
 
 			if (snap_period_ms == 0)
 			    flag_periodic = 0;
-			
+
 			break;
 		}
 		case 'n':
 		{
-			/* Disable address resolution in the kernel  */			
+			/* Disable address resolution in the kernel  */
 			flag_resolve = 0;
 			break;
 		}
 		case 't':
 		{
-			/* Request transparent snapshotting */			
+			/* Request transparent snapshotting */
 			flag_transparent = 1;
 			break;
 		}
 		case 'l':
 		{
 			/* Do not acquire applications layout files
-			 * with snapshots */			
+			 * with snapshots */
 			flag_bm_layout = 0;
 			break;
 		}
@@ -194,7 +194,7 @@ int main (int argc, char ** argv)
 			 * this mode, the scnapshot will be activated
 			 * in one-shot mode after the amount of time
 			 * specified with the -p parameter. Two
-			 * back-to-back snapshots will be collected. */			
+			 * back-to-back snapshots will be collected. */
 			flag_overhead = 1;
 			break;
 		}
@@ -214,11 +214,11 @@ int main (int argc, char ** argv)
 			exit(EXIT_FAILURE);
 		}
 		}
-	} 
+	}
 
 	if (bm_count == 0) {
 		fprintf(stderr, USAGE_STR, argv[0]);
-		exit(EXIT_FAILURE);		
+		exit(EXIT_FAILURE);
 	}
 
 	/* Prepare output directory */
@@ -237,14 +237,14 @@ int main (int argc, char ** argv)
 		/* The directory does not exist. */
 		mkdir(outdir, 0666);
 	}
-	
+
 	/* ALWAYS run the parent with top RT priority */
 	max_prio = sched_get_priority_max(SCHED_FIFO);
 	set_realtime(max_prio);
 
 	/* Send setup commands to the kernel module */
 	config_shutter();
-	
+
 	/* Done with command line parsing -- time to fire up the benchmarks */
 	launch_benchmarks();
 
@@ -253,19 +253,19 @@ int main (int argc, char ** argv)
 
 	/* Almost done - wrap up by creating pid.txt file */
 	wrap_up();
-	
+
 	/* Deallocate any malloc'd memory before exiting */
 	if (flag_out) {
 		free(outdir);
 	}
-		
+
 	return EXIT_SUCCESS;
 }
 
 static inline int open_mod(void)
 {
 	int fd;
-	
+
 	/* Open dumpcache interface */
 	if (((fd = open(PROC_FILENAME, O_RDONLY)) < 0)) {
 		perror("Failed to open "PROC_FILENAME" file. Is the module inserted?");
@@ -284,7 +284,7 @@ int config_shutter(void)
 	unsigned long cmd = 0;
 
 	dumpcache_fd = open_mod();
-	
+
 	/* Whatever is the mode, reset the sample pointer to start
 	 * with. */
 	cmd |= DUMPCACHE_CMD_SETBUF_SHIFT;
@@ -303,7 +303,7 @@ int config_shutter(void)
 	} else {
 		cmd |= DUMPCACHE_CMD_RESOLVE_DIS_SHIFT;
 	}
-	
+
 	err = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
 	if (err) {
 		perror("Shutter configuration command failed");
@@ -311,7 +311,7 @@ int config_shutter(void)
 	}
 
 	printf("Module config OKAY!\n");
-	
+
 	close(dumpcache_fd);
 
 	return err;
@@ -324,7 +324,7 @@ void launch_benchmarks (void)
 
 	for (i = 0; i < bm_count; ++i) {
 
-		/* Launch all the BMs one by one */		
+		/* Launch all the BMs one by one */
 		pid_t cpid = fork();
 		if (cpid == -1) {
 			perror("fork");
@@ -341,7 +341,7 @@ void launch_benchmarks (void)
 
 			if((args[1] = strchr(bms[i], ' '))) {
 				*args[1] = '\0';
-				args[1]++;			
+				args[1]++;
 			}
 
 			/* Set SCHED_FIFO priority if necessary */
@@ -352,26 +352,26 @@ void launch_benchmarks (void)
 			}
 
 			sched_yield();
-			
-			execv(args[0], args);			
-			
+
+			execv(args[0], args);
+
 			/* This point can only be reached if execl fails. */
 			perror("Unable to run benchmark");
 			exit(EXIT_FAILURE);
 		}
-		/* Parent process */	       
+		/* Parent process */
 		else {
 			/* Keep track of the new bm that has been launched */
 			printf("Running: %s (PID = %d, prio = %d)\n", bms[i], cpid,
 			       (flag_rt?(max_prio -1 -i):0));
-			
+
 			pids[running_bms++] = cpid;
 			//cpid_arr[i*NUM_SD_VBS_BENCHMARKS_DATASETS+j] = cpid;
 		}
-		
+
 
 	}
-	
+
 }
 
 /* Handler for SIGCHLD signal to detect benchmark termination */
@@ -380,11 +380,11 @@ void proc_exit_handler (int signo, siginfo_t * info, void * extra)
 {
 	int wstat;
 	pid_t pid;
-	
+
 	(void)signo;
 	(void)info;
 	(void)extra;
-	
+
 	for (;;) {
 		pid = waitpid (-1, &wstat, WNOHANG);
 		if (pid == 0)
@@ -415,7 +415,7 @@ void copy_file(char * src, char * dst)
 	static char buf [BUF_SIZE];
 	int src_fd = open(src, O_RDONLY);
 	ssize_t num_read;
-	
+
 	if (src_fd < 0)
 		return;
 
@@ -435,7 +435,7 @@ void copy_file(char * src, char * dst)
 	}
 
 	close(src_fd);
-	close(dst_fd);	
+	close(dst_fd);
 }
 
 /* Ask the kernel to acquire a new snapshot */
@@ -450,7 +450,7 @@ void acquire_new_snapshot(void)
 		perror("Unable to commandeer new snapshot acquisition");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	close(dumpcache_fd);
 }
 
@@ -462,21 +462,21 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 
 	static char * __cmd = NULL;
 	static char __proc_entry[MALLOC_CMD_PAD];
-	
+
 	static struct itimerspec it = {
 		.it_value.tv_sec = 0,
 		.it_value.tv_nsec = 0,
 		.it_interval.tv_sec = 0,
 		.it_interval.tv_nsec = 0, /* One shot mode */
 	};
-	
+
 	timer_t timer = *((timer_t *)(info->si_value.sival_ptr));
 	int i;
 
 
 	/* Set next activation */
 	it.it_value.tv_nsec = MS_TO_NS(snap_period_ms);
-		
+
 	/* Should happen only once */
 	if (!__cmd)
 		__cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
@@ -485,7 +485,7 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 	for (i = 0; i < bm_count && !flag_async; ++i) {
 		kill(pids[i], SIGSTOP);
 	}
-	
+
 	/* Skip all of this in mimic mode */
 	if(!flag_mimic) {
 		/* Ask the module to acquire a new snapshot.*/
@@ -517,25 +517,25 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 	for (i = 0; i < bm_count && !flag_async; ++i) {
 		kill(pids[i], SIGCONT);
 	}
-		
+
 	/* Keep track of the total number of snapshots acquired so far */
 	++snapshots;
-	
+
 	/* If this is snapshot #1, then just acquire another snapshot
 	 * right away and that will be it. */
 	if (flag_overhead) {
 		if (snapshots == 1) {
 			/* Set timer's next activation */
-			timer_settime(timer, 0, &it, NULL);			
+			timer_settime(timer, 0, &it, NULL);
 		}
 		if (snapshots == 2) {
 			snapshot_handler (signo, info, extra);
 		}
 	} else {
 		/* Set timer's next activation */
-		timer_settime(timer, 0, &it, NULL);		
+		timer_settime(timer, 0, &it, NULL);
 	}
-	
+
 }
 
 /* Handler for SIGRTMAX-1 signal to initiate new snapshot */
@@ -546,9 +546,9 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 
 	static char * __cmd = NULL;
 	static char __proc_entry[MALLOC_CMD_PAD];
-	
+
 	int i;
-	
+
 	/* Should happen only once */
 	if (!__cmd)
 		__cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
@@ -557,7 +557,7 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 	for (i = 0; i < bm_count && !flag_async; ++i) {
 		kill(pids[i], SIGSTOP);
 	}
-	
+
 	/* Skip all of this in mimic mode */
 	if(!flag_mimic) {
 		/* Ask the module to acquire a new snapshot.*/
@@ -589,10 +589,10 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 	for (i = 0; i < bm_count && !flag_async; ++i) {
 		kill(pids[i], SIGCONT);
 	}
-		
+
 	/* Keep track of the total number of snapshots acquired so far */
 	++snapshots;
-	
+
 }
 
 
@@ -601,7 +601,7 @@ void wrap_up (void)
 {
 	char * pathname;
 	int pids_fd, len, i;
-	
+
 	pathname = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
 
 	/* If we are running in transparent mode, now it's the time to
@@ -619,20 +619,21 @@ void wrap_up (void)
 		/* The read_cache_to_file function will re-open this
 		 * file. So close it for now. */
 		close(dumpcache_fd);
-		
+
 		/* If the number of snapshots is in mismatch,
 		 * something is wrong! */
-		if (retval != snapshots) 
+		if (retval != snapshots) {
 			fprintf(stderr, "WARNING: Number of snapshots does not match the expected"
 				"value. Possible overflow?\n");
-		
+
+                }
 		for (i = 0; i < retval; ++i) {
 			sprintf(pathname, "%s/cachedump%04d.csv", outdir, i);
 			read_cache_to_file(pathname, i);
-		}		
+		}
 
-	}	
-	
+	}
+
 	/* Now create pids file with metadata about the acquisition */
 	sprintf(pathname, "%s/pids.txt", outdir);
 	pids_fd = open(pathname, O_CREAT | O_TRUNC | O_RDWR, 0666);
@@ -649,7 +650,7 @@ void wrap_up (void)
 	/* Write out PID of parent process */
 	len = sprintf(pathname, "%d\n", getpid());
 	write(pids_fd, pathname, len);
-	
+
 	for (i = 0; i < bm_count; ++i) {
 		len = sprintf(pathname, "%d\n", pids[i]);
 		write(pids_fd, pathname, len);
@@ -663,11 +664,11 @@ void wrap_up (void)
 void set_realtime(int prio)
 {
 	struct sched_param sp;
-	
+
 	/* Initialize parameters */
 	memset(&sp, 0, sizeof(struct sched_param));
 	sp.sched_priority = prio;
-	
+
 	/* Attempt to set the scheduler for current process */
 	if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0) {
 		perror("Unable to set SCHED_FIFO scheduler");
@@ -681,10 +682,10 @@ void set_realtime(int prio)
 
 		/* default to CPU x for parent */
 		CPU_SET(PARENT_CPU, &set);
-		
+
 		if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
 			perror("Unable to set CPU affinity.");
-			exit(EXIT_FAILURE);			
+			exit(EXIT_FAILURE);
 		}
 
 	}
@@ -694,14 +695,14 @@ void set_realtime(int prio)
 void change_rt_prio(int prio)
 {
 	struct sched_param sp;
-	
+
 	/* Initialize attributes */
 	memset(&sp, 0, sizeof(struct sched_param));
 	sp.sched_priority = prio;
-	
+
 	if(sched_setparam(0, &sp) < 0) {
 		perror("Unable to set new RT priority");
-		exit(EXIT_FAILURE);		
+		exit(EXIT_FAILURE);
 	}
 
 	/* Set CPU affinity if isolate flag specified */
@@ -710,7 +711,7 @@ void change_rt_prio(int prio)
 		int i, nprocs;
 
 		nprocs = get_nprocs();
-		
+
 		CPU_ZERO(&set);
 
 		/* default to CPU x for parent */
@@ -718,29 +719,29 @@ void change_rt_prio(int prio)
 			if (i != PARENT_CPU)
 				CPU_SET(i, &set);
 		}
-		
+
 		if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
 			perror("Unable to set CPU affinity.");
-			exit(EXIT_FAILURE);			
+			exit(EXIT_FAILURE);
 		}
 
 	}
-	
+
 }
 
 /* Set non-real-time SCHED_OTHER scheduler */
 void set_non_realtime(void)
 {
 	struct sched_param sp;
-	
+
 	/* Initialize parameters */
 	memset(&sp, 0, sizeof(struct sched_param));
-	
+
 	/* Attempt to set the scheduler for current process */
 	if (sched_setscheduler(0, SCHED_OTHER, &sp) < 0) {
 		perror("Unable to set SCHED_OTHER scheduler");
 		exit(EXIT_FAILURE);
-	}	
+	}
 }
 
 /* Install periodic snapshot handler and wait for completion using signals */
@@ -750,11 +751,11 @@ void wait_completion(void)
 	struct sigaction chld_sa;
 	struct sigaction timer_sa;
 	struct sigaction ext_sa;
-	
+
 	struct sigevent ev;
 	struct itimerspec it;
 	timer_t timer;
-	
+
 	/* Use RT POSIX extension */
 	chld_sa.sa_flags = SA_SIGINFO;
 	chld_sa.sa_sigaction = proc_exit_handler;
@@ -783,7 +784,7 @@ void wait_completion(void)
 
 	/* Install SIGRTMAX signal handler */
 	sigaction(SIGRTMAX-1, &ext_sa, NULL);
-		
+
 	/* Timer creation */
 	memset(&ev, 0, sizeof(ev));
 	ev.sigev_notify = SIGEV_SIGNAL;
@@ -805,9 +806,9 @@ void wait_completion(void)
 	if (flag_periodic) {
 		timer_settime(timer, 0, &it, NULL);
 	}
-	    
+
 	printf("Setup completed!\n");
-	
+
 	/* Wait for any signal */
 	sigemptyset(&waitmask);
 	while(!done){
@@ -822,9 +823,9 @@ void wait_completion(void)
 void read_cache_to_file(char * filename, int index) {
 	int dumpcache_fd;
 	struct cache_sample * cache_contents;
-	
+
 	int cache_set_idx, cache_line_idx;
-	
+
 	cache_contents = NULL;
 
         FILE *outfp = fopen(filename, "w");
@@ -832,7 +833,7 @@ void read_cache_to_file(char * filename, int index) {
 		perror("Failed to open outfile");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	if (!cache_contents) {
 	    cache_contents = (struct cache_sample *)malloc(sizeof(struct cache_sample));
 	}
@@ -846,7 +847,7 @@ void read_cache_to_file(char * filename, int index) {
 		unsigned long cmd = DUMPCACHE_CMD_SETBUF_SHIFT;
 
 		cmd |= DUMPCACHE_CMD_VALUE(index);
-		
+
 		retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
 		if (retval < 0) {
 			perror("Unable to retrieve current buffer index from shutter");
@@ -854,21 +855,22 @@ void read_cache_to_file(char * filename, int index) {
 		}
 
 	}
-	
+
 	if (read(dumpcache_fd, cache_contents, sizeof(struct cache_sample)) < 0) {
 		perror("Failed to read from proc file");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
-		for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
-                        fprintf(outfp,
-                            "%05d,0x%012lx\n",
-                            cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].pid,
-                            cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].addr);
-		}   
+            for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
+                fprintf(outfp,
+                    "%05d,0x%016lx,%d,%d\n",
+                    cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].pid,
+                    cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].addr,
+                    cache_set_idx, cache_line_idx);
+            }
 	}
-	
+
 	fclose(outfp);
 	close(dumpcache_fd);
 }

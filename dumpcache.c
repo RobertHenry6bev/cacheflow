@@ -18,40 +18,21 @@
 #include <linux/spinlock_types.h>
 #include <linux/version.h>
 
+#include "params_kernel.h"
+
 /* Global Defines */
 #define CACHESETS_TO_WRITE 2048
 #define L2_SIZE 2*1024*1024
 #define MODNAME "dumpcache"
 #define WAYS 16
 
-/* Command to access the configuration interface */
-#define DUMPCACHE_CMD_CONFIG _IOW(0, 0, unsigned long)
-/* Command to initiate a cache dump */
-#define DUMPCACHE_CMD_SNAPSHOT _IOW(0, 1, unsigned long)
-
 #define FULL_ADDRESS 0
-
-#define DO_ASM 1
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
 // Might need this
 //pragma GCC pop_options
-
-/* Struct representing a single cache line - each cacheline struct is 68 bytes */
-struct cache_line {
-	pid_t pid;
-	uint64_t addr;
-};
-
-struct cache_set {
-	struct cache_line cachelines[16];
-};
-
-struct cache_sample {
-	struct cache_set sets[CACHESETS_TO_WRITE];
-};
 
 /* Global variables */
 
@@ -105,29 +86,7 @@ struct cache_sample {
 #define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(struct cache_sample))
 #define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(struct cache_sample))
 
-#define DUMPCACHE_CMD_VALUE_WIDTH  16
-#define DUMPCACHE_CMD_VALUE_MASK   ((1 << DUMPCACHE_CMD_VALUE_WIDTH) - 1)
-#define DUMPCACHE_CMD_VALUE(cmd)		\
-	(cmd & DUMPCACHE_CMD_VALUE_MASK)
-
-/* Command to set the current buffer number */
-#define DUMPCACHE_CMD_SETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 1))
-
-/* Command to retrievet the current buffer number */
-#define DUMPCACHE_CMD_GETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 2))
-
-/* Command to enable/disable buffer autoincrement */
-#define DUMPCACHE_CMD_AUTOINC_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 3))
-#define DUMPCACHE_CMD_AUTOINC_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 4))
-
-/* Command to enable/disable address resolution */
-#define DUMPCACHE_CMD_RESOLVE_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 5))
-#define DUMPCACHE_CMD_RESOLVE_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 6))
-
-/* Command to enable/disable snapshot timestamping */
-#define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
-#define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
-
+
 /*
  * This variable is to keep track of the current buffer in use by the
  * module. It must be reset explicitly to prevent overwriting existing
@@ -345,12 +304,10 @@ static const struct file_operations dumpcache_ops = {
 //
 
 static inline void asm_flush_cache(void) {
-#ifdef DO_ASM
     asm volatile(
         "MCR p15, 0, r0, c7, c5, 0\n"
         "MCR p15, 0, Rd, c7, c6, 0\n"
     );
-#endif
 }
 
 //
@@ -361,15 +318,11 @@ static inline void asm_flush_cache(void) {
 //
 static inline void asm_ramindex_mcr(u32 ramindex)
 {
-#ifdef DO_ASM
 	asm volatile(
 	    "sys #0, c15, c4, #0, %0\n"
 	    "dsb sy\n"  // data sync basrrier
 	    "isb\n"     // instruction sync barrier
 	    :: "r" (ramindex));
-#else
-  printk(KERN_INFO "Elide RAMINDEX mcr: %d", ramindex);
-#endif
 }
 
 //
@@ -380,7 +333,6 @@ static inline void asm_ramindex_mcr(u32 ramindex)
 //
 static inline void asm_ramindex_mrc(u32 *dl1data, u8 sel)
 {
-#ifdef DO_ASM
 	if (sel & 0x01) {
 	  asm volatile("mrs %0,S3_0_c15_c1_0" : "=r"(dl1data[0]));
 	}
@@ -393,15 +345,6 @@ static inline void asm_ramindex_mrc(u32 *dl1data, u8 sel)
 	if (sel & 0x08) {
 	  asm volatile("mrs %0,S3_0_c15_c1_3" : "=r"(dl1data[3]));
 	}
-#else
-  printk(KERN_INFO "Elide RAMINDEX mrc: sel=0x%x", sel);
-  if (dl1data) {
-    dl1data[0] = 0x0badf00d;
-    dl1data[1] = 0x1badf00d;
-    dl1data[2] = 0x2badf00d;
-    dl1data[3] = 0x3badf00d;
-  }
-#endif
 }
 
 
