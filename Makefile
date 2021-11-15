@@ -17,7 +17,7 @@ clean:
 load: dumpcache.ko
 	-sudo rmmod dumpcache
 	sudo insmod $<
-	dmesg | tail -10
+	sudo dmesg | tail -10
 
 .PHONY: disassemble
 disassemble: cache_jig.c experiments/data/cachedump0000.csv

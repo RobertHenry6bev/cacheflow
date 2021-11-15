@@ -14,3 +14,4 @@ modules.order
 *.dts
 *.tar.gz
 tags
+.*.cmd

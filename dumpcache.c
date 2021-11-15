@@ -57,28 +57,14 @@
 #define CACHE_BUF_END1  0x0fee00000UL
 //#define CACHE_BUF_END1 0x100000000UL
 
-//#define CACHE_BUF_BASE2 0x121200000UL
-//#define CACHE_BUF_END2  0x180000000UL
-
-// 40000000-5fffffff  // from /proc/iomem with changes to dts
-// #define CACHE_BUF_BASE2 (0x040000000UL+0)
-// #define CACHE_BUF_END2  (0x05fffffffUL+1)
-// #define CACHE_BUF_END2  (0x050ffffffUL+1)
-// #define CACHE_BUF_END2  (0x043ffffffUL+1)
-// #define CACHE_BUF_END2  (0x0403fffffUL+1)
-
-// #define CACHE_BUF_BASE2 (0xc0000000UL)  // from reserved-memory/cachelow  Renato
-// #define CACHE_BUF_END2  (0xc03fffffUL+1)  // Renato
-
-// this hung when the app was run
-// #define CACHE_BUF_BASE2 (0x3b3fffffUL+1)
-// #define CACHE_BUF_END2  (0x40000000UL)
-
-// #define CACHE_BUF_BASE2 (0x80000000UL)    // from memreserve block at top (didn't work)
-// #define CACHE_BUF_END2  (0x83ffffffUL+1)
-
-// inelegant way to make kernel args include mem=3968M (per Renato)
-// Edit files /boot/firmware/btcmd.txt  /boot/firmware/nobtcmd.txt
+//
+// This is an inelegant way to make kernel args include mem=3968M (per Renato)
+// kernel 5.4 ubuntu 18.04: Edit files:
+//    /boot/firmware/btcmd.txt
+//    /boot/firmware/nobtcmd.txt
+// kernel 5.13.0 ubuntu 21.10: Edit files:
+//    /boot/firmware/cmdline.txt
+//
 
 #define CACHE_BUF_BASE2 (0xfaffffffUL+1)  //
 #define CACHE_BUF_END2  (0xfbffffffUL+1)  //
@@ -89,7 +75,6 @@
 #define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(struct cache_sample))
 #define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(struct cache_sample))
 
-
 /*
  * This variable is to keep track of the current buffer in use by the
  * module. It must be reset explicitly to prevent overwriting existing
@@ -530,9 +515,12 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 		process_data_struct.addr = 0;
 
 	        // This call populates the struct in rwc struct
-		rmap_walk_func(derived_page, rwc_p);
+		if (rmap_walk_func) {
+                    rmap_walk_func(derived_page, rwc_p);
+                }
 
-		// Fill cacheline struct with values obtained from rmap_walk_func
+		// Fill cacheline struct with values obtained
+                // from rmap_walk_func
 		(buf->cachelines[way]).pid = process_data_struct.pid;
 		if(process_data_struct.addr != 0) {
 #if FULL_ADDRESS == 0
@@ -694,20 +682,25 @@ int init_module(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
 		mutex_lock(&module_mutex);
 #endif
-                //
-                // kallsyms_lookup_name only known < VERSION(5,7,0)
-                //
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
 		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
+#else
+		rmap_walk_func = 0;
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
 		mutex_unlock(&module_mutex);
 #endif
 		preempt_enable();
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
 		/* Have we found a valid symbol? */
 		if (!rmap_walk_func) {
 			pr_err("Unable to find rmap_walk symbol. Aborting.\n");
 			return -ENOSYS;
 		}
+#endif
 	}
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
   #define dumpcache_ioremap ioremap_nocache
