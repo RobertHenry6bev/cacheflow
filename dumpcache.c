@@ -303,24 +303,21 @@ static const struct file_operations dumpcache_ops = {
 // See ARM Cortex-A57 MPCore Processor Revision: r1p3
 //
 
-static inline void asm_flush_cache(void) {
-    asm volatile(
-        "MCR p15, 0, r0, c7, c5, 0\n"
-        "MCR p15, 0, Rd, c7, c6, 0\n"
-    );
-}
-
 //
-// Ramindex operation
+// RAMINDEX operation.
 //
 // 4.3.64 in ARM Cortex-A57 MPCore Processor Technical Reference Manual
 // 4.3.64 in ARM Cortex-A72 MPCore Processor Technical Reference Manual
 //
-static inline void asm_ramindex_mcr(u32 ramindex)
+// Purpose: Read the instruction side L1 array contents into the IL1DATAn
+// register or read the data side L1 or L2 array contents into the
+// DL1DATAn register.
+//
+static inline void asm_ramindex_msr(u32 ramindex)
 {
 	asm volatile(
 	    "sys #0, c15, c4, #0, %0\n"
-	    "dsb sy\n"  // data sync basrrier
+	    "dsb sy\n"  //        data sync barrier
 	    "isb\n"     // instruction sync barrier
 	    :: "r" (ramindex));
 }
@@ -331,7 +328,12 @@ static inline void asm_ramindex_mcr(u32 ramindex)
 // 4.3.63 in ARM Cortex-A57 MPCore Processor Technical Reference Manual
 // 4.3.63 in ARM Cortex-A72 MPCore Processor Technical Reference Manual
 //
-static inline void asm_ramindex_mrc(u32 *dl1data, u8 sel)
+// This moves the 32-bit Data L1 Data n Register, EL1 to *dl1data
+//
+// The magic is in the S3_0_c15_c1_0 argument to the mrs instruction
+// mrs == Move to Register from a System register.
+//
+static inline void asm_ramindex_mrs(u32 *dl1data, u8 sel)
 {
 	if (sel & 0x01) {
 	  asm volatile("mrs %0,S3_0_c15_c1_0" : "=r"(dl1data[0]));
@@ -347,18 +349,19 @@ static inline void asm_ramindex_mrc(u32 *dl1data, u8 sel)
 	}
 }
 
-
-// Get Tag of L2 cache entry at (index,way)
-// Tag bank select ignored, 2MB L2 cache assumed
+//
+// Get Tag of L2 cache entry at (index, way).
+// Tag bank select ignored, 2MB L2 cache assumed.
+//
 static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 {
-	u32 ramid    = 0x10;
+	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
 
 	// printk(KERN_INFO "__get_tag %d %d, %p\n", index, way, dl1data);
 
-	asm_ramindex_mcr(ramindex);
-	asm_ramindex_mrc(dl1data, 0x01);
+	asm_ramindex_msr(ramindex);
+	asm_ramindex_mrs(dl1data, 0x01);  // reads just dl1data[0]
 
 	// Check if MOESI state is invalid, and if so, zero out the address
 	if (((*dl1data) & 0x03UL) == 0) {
