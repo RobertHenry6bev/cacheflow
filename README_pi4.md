@@ -31,9 +31,10 @@ wget https://cdimage.ubuntu.com/releases/18.04/release/ubuntu-18.04.5-preinstall
 
 For ubuntu 21.10,
 visit [here](https://ubuntu.com/download/raspberry-pi)
-and download:
+and download the server image (you can use the top if you want,
+but there's more bloat)
 ```bash
-wget https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-desktop-arm64+raspi.img.xz?_ga=2.64572015.1121619683.1637011980-2125342577.1636579052
+wget https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-server-arm64+raspi.img.xz?_ga=2.27306364.1121619683.1637011980-2125342577.1636579052
 ```
 
 Running on your Ubuntu devel machine,
@@ -55,6 +56,64 @@ and do the "WRITE" operation.
 Unmount the uSD card from the host machine.
 
 Turn the Raspberry pi off, aove the uSD card to the slot on the Pi 4.
+Plug in keyboard, monitor, ethernet and power.
 
-Power on.  you're up and running
+Power on.  You're up and running.
 
+login as `ubuntu` passwd `ubuntu`.  Immediately change the password.
+
+Wait for unattended upgrade to finish in the background;
+this might take as much as 30 minutes.
+When top shows no more dpkg like programs burning cycles, then try
+to...
+
+Install the first round of packages:
+``` bash
+sudo apt-get install --yes ifconfig build-essential gdb locate
+```
+Set up your ssh environment, for a suitable host name `HOME_MACHINE`:
+``` bash
+scp -r -p $HOME_MACHINE:.ssh x
+rm -rf .ssh
+mv x .ssh
+
+eval `ssh-agent`; ssh-add ~/.ssh/id_rsa
+```
+
+Set up your git environment, someething like:
+```bash
+git config --global user.name "YOUR NAME HERE"
+git config --global user.email "YOUR EMAIL HERE"
+git config --global push.default nothing
+git config --global core.editor $(which vim)
+git config --global core.excludesfile ~/.gitignore_global
+git config --global  merge.renamelimit 2000
+git config pull.rebase false # merge (the default strategy)
+
+```
+
+Figure out the board's ip address so you can ssh into it from
+another machine that might be more comfortable:
+``` bash
+ipconfig
+```
+
+# Edit boot configuration files
+You'll need to carve out some amount of memory at the top end
+of the physical address space.
+For a 4GByte Raspberry pi4,
+running ubuntu 21.10,
+change `/boot/firmware/cmdline.txt`
+```
+sudo vi /boot/firmware/cmdline.txt
+append  mem=3968M to the end of the single line therein
+write file
+sudo cat /proc/iomem > $HOME/iomem.old.out
+sudo reboot
+```
+Once the machine comes back up, do:O
+```bash
+sudo cat /proc/iomem > $HOME/iomem.new.out
+diff $HOME/iomem.old.out $HOME/iomem.new.out
+# TODO(robhenry): These should differ, but they don't
+```
