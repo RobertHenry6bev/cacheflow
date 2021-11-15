@@ -1,6 +1,7 @@
 .PHONY: all
 all: clean e1_benchmark.x e1_benchmark1.x e1_benchmark2.x e2_benchmark.x snapshot.x
-	#
+
+#
 # Usage: ./snapshot.x [-rmafi] [-o outpath] [-p period_ms] "benchmark 1", ..., "benchmark n"
 # Options:
 # -r	Set real-time priorities. Parent has highest priority,
@@ -21,6 +22,7 @@ run: snapshot.x e10_benchmark.x | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
 	sudo ./snapshot.x -f -o data $(PWD)/e10_benchmark.x
 	sudo chown $(USER):$(USER) data/*
+
 data:
 	mkdir -p $@
 

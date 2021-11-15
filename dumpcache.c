@@ -16,6 +16,7 @@
 #include <linux/rmap.h>
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
+#include <linux/types.h>
 #include <linux/version.h>
 
 #include "params_kernel.h"
@@ -121,6 +122,8 @@ static int dumpcache_open (struct inode *inode, struct file *filp);
 static int dump_index(int index, struct cache_set* buf);
 static int dump_all_indices(void);
 
+static int dump_Cortex_L1_I(void);
+
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	return *pos < 1 ? (void *)1 : NULL;
@@ -189,7 +192,11 @@ static int acquire_snapshot(void)
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
-	dump_all_indices();
+        if (1) {
+          dump_Cortex_L1_I();
+        } else {
+          dump_all_indices();
+        }
 
 	preempt_enable();
 	spin_unlock(&snap_lock);
@@ -409,9 +416,7 @@ static inline void get_L1Idata(u32 index, u32 way, u32 *instructions)
   instructions[0] = 0;
   instructions[1] = 0;
   asm_ramindex_msr(ramindex);
-  asm_ramindex_insn_mrs(instructions, 0x03);
-  // instructions[0] = 0xff00ee88UL;  // TODO stuff bogus
-  // instructions[1] = 0xff00ee77UL;  // TODO stuff bogus
+  asm_ramindex_insn_mrs(instructions, 0x03);  // get insn[0] and insn[1]
 }
 
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)
@@ -584,7 +589,6 @@ static int dump_index(int index, struct cache_set* buf)
 
 static int dump_all_indices(void) {
 	int i = 0;
-        // printk(KERN_INFO "dump_all_indices\n");
 	for (i = 0; i < CACHESETS_TO_WRITE; i++) {
 		if (dump_index(i, &cur_sample->sets[i]) == 1){
 			printk(KERN_INFO "Error dumping index: %d", i);
@@ -592,6 +596,25 @@ static int dump_all_indices(void) {
 		}
 	}
 	return 0;
+}
+
+static int dump_Cortex_L1_I(void) {
+    uint32_t way, bank, set, pair;
+    struct Cortex_L1_I_Insn_Cache *cache =
+        (struct Cortex_L1_I_Insn_Cache *)cur_sample;
+    for (way = 0; way < 3; way++) {
+        for (bank = 0; bank < 4; bank++) {
+            for (set = 0; set < 256; set++) {
+                for (pair = 0; pair < 2; pair++) {
+                    struct Cortex_L1_I_Insn_Pair *p =
+                       &cache->way[way].bank[bank].set[set].pair[pair];
+                    uint32_t index = (set << 6) | (bank << 4) | (pair << 3);
+                    get_L1Idata(index, way, p->instruction);
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 /* ProcFS interface definition */

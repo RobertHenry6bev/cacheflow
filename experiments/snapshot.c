@@ -11,7 +11,7 @@
 /*************************************************************/
 
 #define _GNU_SOURCE
-#include "params.h"
+
 #include <limits.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -19,6 +19,8 @@
 #include <sched.h>
 #include <sys/sysinfo.h>
 #include <sys/ioctl.h>
+
+#include "params.h"
 
 #define MAX_BENCHMARKS 20
 #define PARENT_CPU 2
@@ -861,6 +863,29 @@ void read_cache_to_file(char * filename, int index) {
 		exit(EXIT_FAILURE);
 	}
 
+        if (1) {
+
+    uint32_t way, bank, set, pair;
+    struct Cortex_L1_I_Insn_Cache *cache =
+        (struct Cortex_L1_I_Insn_Cache *)cache_contents;
+    const char *sep = "";
+    for (way = 0; way < 3; way++) {
+        for (set = 0; set < 256; set++) {
+            fprintf(outfp, "/*%d,%d*/", way, set);
+            for (bank = 0; bank < 4; bank++) {
+                for (pair = 0; pair < 2; pair++) {
+                    struct Cortex_L1_I_Insn_Pair *p =
+                       &cache->way[way].bank[bank].set[set].pair[pair];
+                    fprintf(outfp, "%s0x%08x,0x%08x",
+                        sep, p->instruction[0], p->instruction[1]);
+                    sep = ",";
+                }
+            }
+            fprintf(outfp, "\n");
+        }
+    }
+
+        } else {
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
             for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
                 fprintf(outfp,
@@ -870,6 +895,7 @@ void read_cache_to_file(char * filename, int index) {
                     cache_set_idx, cache_line_idx);
             }
 	}
+        }
 
 	fclose(outfp);
 	close(dumpcache_fd);

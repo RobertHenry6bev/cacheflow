@@ -3,8 +3,9 @@ obj-m += dumpcache.o
 .PHONY: run
 run: load
 	cd experiments; make run
-.PHONY: all
-all: dumpcache.ko
+
+.PHONY: build
+build: dumpcache.ko
 dumpcache.ko: dumpcache.c dumpcache.mod.c
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
