@@ -67,4 +67,24 @@ struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];
 };
 
+struct Cortex_L1_I_Tag_Bank_Line {
+  pid_t pid;
+  union {
+    uint32_t instruction[2];
+    struct raw_tag_ram_output {
+       uint32_t physical_address;
+       uint32_t meta;   // bit1: valid; bit0: non-secure ID
+    } d;
+  } u;
+};
+struct Cortex_L1_I_Tag_Bank {
+  struct Cortex_L1_I_Tag_Bank_Line set[128];
+};
+struct Cortex_L1_I_Tag_Way {
+  struct Cortex_L1_I_Tag_Bank bank[2];
+};
+struct Cortex_L1_I_Tag_Cache {
+  struct Cortex_L1_I_Tag_Way way[3];
+};
+
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H

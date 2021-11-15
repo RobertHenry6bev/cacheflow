@@ -122,7 +122,8 @@ static int dumpcache_open (struct inode *inode, struct file *filp);
 static int dump_index(int index, struct cache_set* buf);
 static int dump_all_indices(void);
 
-static int dump_Cortex_L1_I(void);
+static int get_Cortex_L1_Insn(void);
+static int get_Cortex_L1_Tag(void);
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
@@ -193,7 +194,9 @@ static int acquire_snapshot(void)
 
 	/* Perform cache snapshot */
         if (1) {
-          dump_Cortex_L1_I();
+          get_Cortex_L1_Tag();
+        } else if (0) {
+          get_Cortex_L1_Insn();
         } else {
           dump_all_indices();
         }
@@ -366,14 +369,12 @@ static inline void asm_ramindex_insn_mrs(u32 *ildata, u8 sel)
 	if (sel & 0x02) {
 	  asm volatile("mrs %0, S3_0_c15_c0_1" : "=r"(ildata[1]));
 	}
-#if 0
 	if (sel & 0x04) {
 	  asm volatile("mrs %0, S3_0_c15_c0_2" : "=r"(ildata[2]));
 	}
 	if (sel & 0x08) {
 	  asm volatile("mrs %0, S3_0_c15_c0_3" : "=r"(ildata[3]));
 	}
-#endif
 }
 
 //
@@ -403,16 +404,34 @@ static inline void get_L2_tag(u32 index, u32 way, u32 *dl1data)
 
 #define MASK2(ub, lb) ((0x1UL<<((ub)-(lb)+1)) - 1)
 
-static inline void get_L1Idata(u32 index, u32 way, u32 *instructions)
+static inline void get_L1Itag(u32 index, u32 way, uint32_t *instructions) {
+  //
+  // index is the virtual address. See figure 4-58
+  //
+  u32 ramid    = 0x00;  // L1-I Tag RAM
+  u32 ramindex = 0
+    | (ramid << 24)
+    | ((way & 0x3) << 18)
+    | ((index & MASK2(13,6)) << 5);
+  instructions[0] = 0;
+  instructions[1] = 0;
+  asm_ramindex_msr(ramindex);
+  asm_ramindex_insn_mrs(instructions, 0x03);  // get insn[0] and insn[1]
+  // instructions[0] = 0xbadf00dUL;  // dummy physical address
+  // instructions[1] = 0x1111111UL;  // dummy 2-bit field: valid and non-secure id
+}
+
+static inline void get_L1Iinsn(u32 index, u32 way, u32 *instructions)
 {
   //
   // index is the virtual address. See figure 4-58
   //
   u32 ramid    = 0x01;  // L1-I Data RAM
-  u32 ramindex = (ramid << 24) | ((way & 0x3) << 18) | ((index & MASK2(13,3)) << 3);
-
-  // printk(KERN_INFO "__get_L1Idata %d %d\n", index, way);
-
+  u32 ramindex = 0
+    | (ramid << 24)
+    | ((way & 0x3) << 18)
+    | ((index & MASK2(13,3)) << 3)
+    ;
   instructions[0] = 0;
   instructions[1] = 0;
   asm_ramindex_msr(ramindex);
@@ -549,7 +568,7 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 }
 
 #define L1IDATA_WAYS 3
-static int __dump_L1Idata(int index, struct cache_set* buf)
+static int __dump_L1Iinsn(int index, struct cache_set* buf)
 {
   int way;
   u32 instructions[2];
@@ -558,7 +577,7 @@ static int __dump_L1Idata(int index, struct cache_set* buf)
   for (way = 0; way < L1IDATA_WAYS; way++) {
       buf->cachelines[way].pid = 777777;
       buf->cachelines[way].addr = 0x7777777777777777ULL;
-      get_L1Idata(index, way, instructions);
+      get_L1Iinsn(index, way, instructions);
       if (instructions[0] == 0) {  // TODO(robhenry):is 0 a legit insn?
           continue;
       }
@@ -576,7 +595,7 @@ static int __dump_L1Idata(int index, struct cache_set* buf)
 static int dump_index(int index, struct cache_set* buf)
 {
         if (1) {
-          return __dump_L1Idata(index, buf);
+          return __dump_L1Iinsn(index, buf);
         } else {
           // printk(KERN_INFO "dump_index %d %p\n", index, buf);
           if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
@@ -598,7 +617,24 @@ static int dump_all_indices(void) {
 	return 0;
 }
 
-static int dump_Cortex_L1_I(void) {
+static int get_Cortex_L1_Tag(void) {
+    uint32_t way, bank, set;
+    struct Cortex_L1_I_Tag_Cache *cache =
+        (struct Cortex_L1_I_Tag_Cache *)cur_sample;
+    for (way = 0; way < 3; way++) {
+        for (bank = 0; bank < 2; bank++) {
+            for (set = 0; set < 128; set++) {
+                struct Cortex_L1_I_Tag_Bank_Line *p =
+                  &cache->way[way].bank[bank].set[set];
+                uint32_t index = (set << 7) | (bank << 6);
+                get_L1Itag(index, way, p->u.instruction);
+            }
+        }
+    }
+    return 0;
+}
+
+static int get_Cortex_L1_Insn(void) {
     uint32_t way, bank, set, pair;
     struct Cortex_L1_I_Insn_Cache *cache =
         (struct Cortex_L1_I_Insn_Cache *)cur_sample;
@@ -609,7 +645,7 @@ static int dump_Cortex_L1_I(void) {
                     struct Cortex_L1_I_Insn_Pair *p =
                        &cache->way[way].bank[bank].set[set].pair[pair];
                     uint32_t index = (set << 6) | (bank << 4) | (pair << 3);
-                    get_L1Idata(index, way, p->instruction);
+                    get_L1Iinsn(index, way, p->instruction);
                 }
             }
         }

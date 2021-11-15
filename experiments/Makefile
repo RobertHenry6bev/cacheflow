@@ -1,5 +1,5 @@
 .PHONY: all
-all: clean e1_benchmark.x e1_benchmark1.x e1_benchmark2.x e2_benchmark.x snapshot.x
+all: run
 
 #
 # Usage: ./snapshot.x [-rmafi] [-o outpath] [-p period_ms] "benchmark 1", ..., "benchmark n"
@@ -18,9 +18,11 @@ all: clean e1_benchmark.x e1_benchmark1.x e1_benchmark2.x e2_benchmark.x snapsho
 # 
 
 .PHONY: run
-run: snapshot.x e10_benchmark.x | data
+VICTIM = e10_benchmark.x
+VICTIM = e11_flood.x
+run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -f -o data $(PWD)/e10_benchmark.x
+	sudo ./snapshot.x -f -o data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
 data:
@@ -31,20 +33,9 @@ CFLAGS = -O0 -g -Wall
 snapshot.x: snapshot.c Makefile
 	gcc $(CFLAGS) -o $@ $< -lrt
 
-e1_benchmark.x: e1_benchmark.c Makefile
+%.x: %.c Makefile
 	gcc $(CFLAGS) -o $@ $< -lrt
 
-e1_benchmark1.x: e1_benchmark1.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt
-
-e1_benchmark2.x: e1_benchmark2.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt
-
-e2_benchmark.x: e2_benchmark.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt
-
-e10_benchmark.x: e10_benchmark.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt
 
 .PHONY: clean
 clean:

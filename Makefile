@@ -18,3 +18,8 @@ load: dumpcache.ko
 	-sudo rmmod dumpcache
 	sudo insmod $<
 	dmesg | tail -10
+
+.PHONY: disassemble
+disassemble: cache_jig.c experiments/data/cachedump0000.csv
+	gcc -g -c cache_jig.c
+	echo x/4096i vals | gdb cache_jig.o
