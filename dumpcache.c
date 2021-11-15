@@ -20,7 +20,9 @@
 
 #include "params_kernel.h"
 
-/* Global Defines */
+//
+// TODO(robhenry): these are probably specific to reading the L2 Tag
+//
 #define CACHESETS_TO_WRITE 2048
 #define L2_SIZE 2*1024*1024
 #define MODNAME "dumpcache"
@@ -333,27 +335,45 @@ static inline void asm_ramindex_msr(u32 ramindex)
 // The magic is in the S3_0_c15_c1_0 argument to the mrs instruction
 // mrs == Move to Register from a System register.
 //
-static inline void asm_ramindex_mrs(u32 *dl1data, u8 sel)
+static inline void asm_ramindex_data_mrs(u32 *dl1data, u8 sel)
 {
 	if (sel & 0x01) {
-	  asm volatile("mrs %0,S3_0_c15_c1_0" : "=r"(dl1data[0]));
+	  asm volatile("mrs %0, S3_0_c15_c1_0" : "=r"(dl1data[0]));
 	}
 	if (sel & 0x02) {
-	  asm volatile("mrs %0,S3_0_c15_c1_1" : "=r"(dl1data[1]));
+	  asm volatile("mrs %0, S3_0_c15_c1_1" : "=r"(dl1data[1]));
 	}
 	if (sel & 0x04) {
-	  asm volatile("mrs %0,S3_0_c15_c1_2" : "=r"(dl1data[2]));
+	  asm volatile("mrs %0, S3_0_c15_c1_2" : "=r"(dl1data[2]));
 	}
 	if (sel & 0x08) {
-	  asm volatile("mrs %0,S3_0_c15_c1_3" : "=r"(dl1data[3]));
+	  asm volatile("mrs %0, S3_0_c15_c1_3" : "=r"(dl1data[3]));
 	}
+}
+
+static inline void asm_ramindex_insn_mrs(u32 *ildata, u8 sel)
+{
+	if (sel & 0x01) {
+	  asm volatile("mrs %0, S3_0_c15_c0_0" : "=r"(ildata[0]));
+	}
+	if (sel & 0x02) {
+	  asm volatile("mrs %0, S3_0_c15_c0_1" : "=r"(ildata[1]));
+	}
+#if 0
+	if (sel & 0x04) {
+	  asm volatile("mrs %0, S3_0_c15_c0_2" : "=r"(ildata[2]));
+	}
+	if (sel & 0x08) {
+	  asm volatile("mrs %0, S3_0_c15_c0_3" : "=r"(ildata[3]));
+	}
+#endif
 }
 
 //
 // Get Tag of L2 cache entry at (index, way).
 // Tag bank select ignored, 2MB L2 cache assumed.
 //
-static inline void get_tag(u32 index, u32 way, u32 *dl1data)
+static inline void get_L2_tag(u32 index, u32 way, u32 *dl1data)
 {
 	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
@@ -361,7 +381,7 @@ static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 	// printk(KERN_INFO "__get_tag %d %d, %p\n", index, way, dl1data);
 
 	asm_ramindex_msr(ramindex);
-	asm_ramindex_mrs(dl1data, 0x01);  // reads just dl1data[0]
+	asm_ramindex_data_mrs(dl1data, 0x01);  // reads just dl1data[0]
 
 	// Check if MOESI state is invalid, and if so, zero out the address
 	if (((*dl1data) & 0x03UL) == 0) {
@@ -372,6 +392,26 @@ static inline void get_tag(u32 index, u32 way, u32 *dl1data)
 	*dl1data &= ~(0x03UL);
 	*dl1data <<= 12;
 	*dl1data |= (index << 5);
+}
+
+#define MASK2(ub, lb) ((0x1UL<<((ub)-(lb)+1)) - 1)
+
+static inline void get_L1Idata(u32 index, u32 way, u32 *instructions)
+{
+  //
+  // index is the virtual address. See figure 4-58
+  //
+  u32 ramid    = 0x01;  // L1-I Data RAM
+  u32 ramindex = (ramid << 24) | ((way & 0x3) << 18) | ((index & MASK2(13,3)) << 3);
+
+  // printk(KERN_INFO "__get_L1Idata %d %d\n", index, way);
+
+  instructions[0] = 0;
+  instructions[1] = 0;
+  asm_ramindex_msr(ramindex);
+  asm_ramindex_insn_mrs(instructions, 0x03);
+  // instructions[0] = 0xff00ee88UL;  // TODO stuff bogus
+  // instructions[1] = 0xff00ee77UL;  // TODO stuff bogus
 }
 
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)
@@ -451,7 +491,7 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 	rwc_p = &rwc;
 
 	for (way = 0; way < WAYS; way++) {
-		get_tag(index, way, &physical_address);
+		get_L2_tag(index, way, &physical_address);
 		if (!physical_address) {
 			continue;
                 }
@@ -459,8 +499,8 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 		derived_page = phys_to_page(((u64)physical_address << 1));
 
 		// Initalize struct
-		(buf->cachelines[way]).pid = 0; //process_data_struct->pid;// = 0;
-		(buf->cachelines[way]).addr = ((u64)physical_address << 1); //process_data_struct->addr;// = 0;
+		(buf->cachelines[way]).pid = 0;
+		(buf->cachelines[way]).addr = ((u64)physical_address << 1);
 
 		/* Reset address */
 		process_data_struct.addr = 0;
@@ -489,7 +529,7 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 	// printk(KERN_INFO "__dump_index_noresolve %d %p\n", index, buf);
 
 	for (way = 0; way < WAYS; way++) {
-		get_tag(index, way, &physical_address);
+		get_L2_tag(index, way, &physical_address);
 		if (!physical_address) {
 			continue;
                 }
@@ -503,16 +543,43 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 	return 0;
 }
 
+#define L1IDATA_WAYS 3
+static int __dump_L1Idata(int index, struct cache_set* buf)
+{
+  int way;
+  u32 instructions[2];
+  instructions[0] = 0;
+  instructions[1] = 0;
+  for (way = 0; way < L1IDATA_WAYS; way++) {
+      buf->cachelines[way].pid = 777777;
+      buf->cachelines[way].addr = 0x7777777777777777ULL;
+      get_L1Idata(index, way, instructions);
+      if (instructions[0] == 0) {  // TODO(robhenry):is 0 a legit insn?
+          continue;
+      }
+      buf->cachelines[way].pid = 666666;
+      buf->cachelines[way].addr =  // we're reusing the field name
+        (((u64)instructions[0]) << 32) |
+        (((u64)instructions[1]) <<  0) ;
+  }
+
+  return 0;
+}
+
 /* Invoke a smaller-footprint function in case address resolution has
  * not been requested */
 static int dump_index(int index, struct cache_set* buf)
 {
-        // printk(KERN_INFO "dump_index %d %p\n", index, buf);
-	if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
-		return __dump_index_resolve(index, buf);
-	} else {
-		return __dump_index_noresolve(index, buf);
-        }
+        if (1) {
+          return __dump_L1Idata(index, buf);
+        } else {
+          // printk(KERN_INFO "dump_index %d %p\n", index, buf);
+          if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
+                  return __dump_index_resolve(index, buf);
+          } else {
+                  return __dump_index_noresolve(index, buf);
+          }
+      }
 }
 
 static int dump_all_indices(void) {

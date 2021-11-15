@@ -29,6 +29,9 @@
 #define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
+//
+//TODO(robhenry); These are probably specific to the Cortex A72(?) L2 Tag
+//
 #define NUM_CACHESETS 2048
 #define CACHESIZE 1024*1024*2
 #define NUM_CACHELINES 16

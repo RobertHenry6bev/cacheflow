@@ -1,5 +1,8 @@
 obj-m += dumpcache.o
 
+.PHONY: run
+run: load
+	cd experiments; make run
 .PHONY: all
 all: dumpcache.ko
 dumpcache.ko: dumpcache.c dumpcache.mod.c
