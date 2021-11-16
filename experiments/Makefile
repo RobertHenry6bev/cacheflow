@@ -34,7 +34,7 @@ snapshot.x: snapshot.c Makefile
 	gcc $(CFLAGS) -o $@ $< -lrt
 
 %.x: %.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt
+	gcc $(CFLAGS) -o $@ $< -lrt -lpthread
 
 
 .PHONY: clean
