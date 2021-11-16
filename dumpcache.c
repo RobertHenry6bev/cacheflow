@@ -244,7 +244,7 @@ static int dumpcache_config(unsigned long cmd)
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	long err;
-        // printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld\n", ioctl, arg);
+        printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld\n", ioctl, arg);
 
 	switch (ioctl) {
 	case DUMPCACHE_CMD_CONFIG:
@@ -645,6 +645,7 @@ static int get_Cortex_L1_Insn(void) {
 static int dumpcache_open(struct inode *inode, struct file *filp)
 {
 	int ret;
+	printk(KERN_INFO "dumpcache_open\n");
 
 	if (!cur_sample) {
 		pr_err("Something went horribly wrong. Invalid buffer.\n");

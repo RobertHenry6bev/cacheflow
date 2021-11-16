@@ -662,7 +662,10 @@ void wrap_up (void)
 	free(pathname);
 }
 
-/* Set real-time SCHED_FIFO scheduler with given priority */
+/*
+ * Set real-time SCHED_FIFO scheduler with given priority
+ * This perror'ed on kernel 5.13.0-raspi from ubuntu 21.10
+ */
 void set_realtime(int prio)
 {
 	struct sched_param sp;
@@ -674,7 +677,7 @@ void set_realtime(int prio)
 	/* Attempt to set the scheduler for current process */
 	if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0) {
 		perror("Unable to set SCHED_FIFO scheduler");
-		exit(EXIT_FAILURE);
+		// exit(EXIT_FAILURE);
 	}
 
 	/* Set CPU affinity if isolate flag specified */
