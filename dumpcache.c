@@ -178,9 +178,9 @@ static int acquire_snapshot(void)
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
-        if (1) {
+        if (0) {
           get_Cortex_L1_Tag();
-        } else if (0) {
+        } else if (1) {
           get_Cortex_L1_Insn();
         } else {
           dump_all_indices();
@@ -371,15 +371,13 @@ static inline void get_L2_tag(u32 index, u32 way, u32 *dl1data)
 	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
 
-	// printk(KERN_INFO "__get_tag %d %d, %p\n", index, way, dl1data);
-
 	asm_ramindex_msr(ramindex);
 	asm_ramindex_data_mrs(dl1data, 0x01);  // reads just dl1data[0]
 
 	// Check if MOESI state is invalid, and if so, zero out the address
 	if (((*dl1data) & 0x03UL) == 0) {
-		*dl1data = 0;
-		return;
+          *dl1data = 0;
+          return;
 	}
 	// Isolate the tag
 	*dl1data &= ~(0x03UL);

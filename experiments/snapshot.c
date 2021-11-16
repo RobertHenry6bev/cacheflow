@@ -866,7 +866,7 @@ void read_cache_to_file(char * filename, int index) {
 		exit(EXIT_FAILURE);
 	}
 
-        if (1) {
+        if (0) {
           // L1 I Tag
           uint32_t way, bank, set;
           struct Cortex_L1_I_Tag_Cache *cache =
@@ -884,9 +884,7 @@ void read_cache_to_file(char * filename, int index) {
                   }
               }
           }
-    } else
-
-    if (0) {
+    } else if (1) {
       // L1 I Insn
 
       uint32_t way, bank, set, pair;

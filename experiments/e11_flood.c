@@ -12,7 +12,7 @@ int foo(int i) {
 
 int main() {
   int iterations;
-  for (iterations = 0; iterations < 200; iterations++) {
+  for (iterations = 0; iterations < 1000*1000*200; iterations++) {
       foo(iterations);
   }
   return 0;
