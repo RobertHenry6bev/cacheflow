@@ -890,17 +890,15 @@ void read_cache_to_file(char * filename, int index) {
       uint32_t way, bank, set, pair;
       struct Cortex_L1_I_Insn_Cache *cache =
           (struct Cortex_L1_I_Insn_Cache *)cache_contents;
-      const char *sep = "";
       for (way = 0; way < 3; way++) {
           for (set = 0; set < 256; set++) {
-              fprintf(outfp, "/*%d,%d*/", way, set);
+              fprintf(outfp, "%d,%d", way, set);
               for (bank = 0; bank < 4; bank++) {
                   for (pair = 0; pair < 2; pair++) {
                       struct Cortex_L1_I_Insn_Pair *p =
                          &cache->way[way].bank[bank].set[set].pair[pair];
-                      fprintf(outfp, "%s0x%08x,0x%08x",
-                          sep, p->instruction[0], p->instruction[1]);
-                      sep = ",";
+                      fprintf(outfp, ",0x%08x,0x%08x",
+                          p->instruction[0], p->instruction[1]);
                   }
               }
               fprintf(outfp, "\n");

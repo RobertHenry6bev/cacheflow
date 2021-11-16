@@ -41,3 +41,6 @@ snapshot.x: snapshot.c Makefile
 clean:
 	rm -f *.o *.x
 
+.PHONY: plot_insn
+plot_insn: plot_insn.py plot_insn.py data/cachedump0012.csv
+	python3 plot_insn.py data/cachedump0012.csv
