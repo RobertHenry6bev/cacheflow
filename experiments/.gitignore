@@ -3,3 +3,6 @@ data/
 .*.swp
 *.s
 *.o
+*.png
+*.mp4
+*.tgz

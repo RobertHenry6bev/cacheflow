@@ -41,10 +41,45 @@ snapshot.x: snapshot.c Makefile
 clean:
 	rm -f *.o *.x
 
+ALL_CSV := $(shell ls data/*.csv | head -50)
+ALL_PNG = $(ALL_CSV:%.csv=%.png)
+.PHONY: png_all
+png_all: $(ALL_PNG) Makefile
+	tar czf png_capture.tgz $(ALL_PNG)
+	scp png_capture.tgz robhenry@qtm-ubnt-02:Downloads
+
+DURATION_NUM=10
+DURATION_DEN=1
+
+#
+# From https://superuser.com/questions/249101/how-can-i-combine-30-000-images-into-a-timelapse-movie
+#
+.PHONY: movie_all
+movie_all: out.mp4
+out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
+	-rm -f $@
+	ffmpeg \
+          -f image2 \
+          -r ${DURATION_NUM}/${DURATION_DEN} \
+          -i data/cachedump%04d.png \
+          -pix_fmt yuv420p \
+          -vf scale=16:128 \
+          -loglevel quiet \
+          $@
+
+	scp $@ robhenry@qtm-ubnt-02:Downloads
+#          -s:v -xx:128 \
+#          -codec:v copy \
+
+# WATCHOUT: this consumes a lot of space
+/usr/bin/ffmpeg:
+	sudo apt-get install ffmpeg
+
 .PHONY: plot_insn
-plot_insn: junk.png
-junk.png: plot_insn.py plot_insn.py data/cachedump0012.csv
-	python3 plot_insn.py data/cachedump0012.csv
+plot_insn: data/cachedump0012.png
+
+data/%.png: data/%.csv plot_insn.py plot_insn.py data/%.csv
+	python3 plot_insn.py --output $@ $<
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py
