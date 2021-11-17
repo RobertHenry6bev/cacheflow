@@ -42,5 +42,12 @@ clean:
 	rm -f *.o *.x
 
 .PHONY: plot_insn
-plot_insn: plot_insn.py plot_insn.py data/cachedump0012.csv
+plot_insn: junk.png
+junk.png: plot_insn.py plot_insn.py data/cachedump0012.csv
 	python3 plot_insn.py data/cachedump0012.csv
+
+.PHONY: pylint
+pylint: /usr/bin/pylint3 *.py
+	/usr/bin/pylint3 *.py
+/usr/bin/pylint3:
+	sudo apt-get install pylint3
