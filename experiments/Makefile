@@ -39,10 +39,11 @@ snapshot.x: snapshot.c Makefile
 
 .PHONY: clean
 clean:
-	rm -f *.o *.x
+	rm -f *.o *.x *.mp4 *.png *.mkv
 
 ALL_CSV := $(shell ls data/*.csv | head -50)
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
+
 .PHONY: png_all
 png_all: $(ALL_PNG) Makefile
 	tar czf png_capture.tgz $(ALL_PNG)
@@ -51,11 +52,24 @@ png_all: $(ALL_PNG) Makefile
 DURATION_NUM=10
 DURATION_DEN=1
 
+.PHONY: movie_all
+movie_all: out_new.mkv
+out_new.mkv: /usr/bin/mencoder $(ALL_PNG)
+	-rm -f $@
+	mencoder \
+          data/*.png -mf fps=2:type=png \
+          -ovc copy \
+          -o $@
+
+.PHONY: display_movie
+display_movie: out_new.mkv /usr/bin/vlc
+	/usr/bin/vlc $<
+
 #
 # From https://superuser.com/questions/249101/how-can-i-combine-30-000-images-into-a-timelapse-movie
 #
-.PHONY: movie_all
-movie_all: out.mp4
+.PHONY: old_movie_all
+old_movie_all: out.mp4
 out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 	-rm -f $@
 	ffmpeg \
@@ -74,12 +88,15 @@ out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 # WATCHOUT: this consumes a lot of space
 /usr/bin/ffmpeg:
 	sudo apt-get install ffmpeg
+/usr/bin/mencoder:
+	sudo apt-get install mencoder
 
 .PHONY: plot_insn
 plot_insn: data/cachedump0012.png
 
-data/%.png: data/%.csv plot_insn.py plot_insn.py data/%.csv
-	python3 plot_insn.py --output $@ $<
+SCALE = 16
+data/%.png: data/%.csv plot_insn.py plot_insn.py data/%.csv Makefile
+	python3 plot_insn.py --scale $(SCALE) --output $@ $<
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py

@@ -10,10 +10,10 @@ import png  # sudo apt-get install python3-pip ; pip3 install pypng
 
 def plot_insn_bitmap():
     """Plot the L1 Cache as a bitmap."""
-    parser = argparse.ArgumentParser("write png file showing location of instructions")
+    parser = argparse.ArgumentParser("write png file with bitmap of found")
     parser.add_argument(
         "--insn",
-        help="value of instruction to find",
+        help="value of the instruction to find",
         type=int,
         default=0x521f0000,)
     parser.add_argument(
@@ -21,6 +21,16 @@ def plot_insn_bitmap():
         help="maximum number of rowsd",
         type=int,
         default=32,)
+    parser.add_argument(
+        "--scale",
+        help="png bits per logical pixel",
+        type=int,
+        default=4,)
+    parser.add_argument(
+        "--hit_only",
+        help="only show hits in grey scale",
+        type=bool,
+        default=True,)
     parser.add_argument(
         "--output",
         help="name of output file",
@@ -31,9 +41,13 @@ def plot_insn_bitmap():
         nargs=argparse.REMAINDER,)
 
     args = parser.parse_args()
+    do_bw_match = args.hit_only
 
     with open(args.output, "wb") as png_file:
-        png_writer = png.Writer(16, args.maxrows, greyscale=False)
+        png_writer = png.Writer(
+            args.scale*16,
+            args.scale*args.maxrows,
+            greyscale=do_bw_match)
         fieldnames = ["a", "b"] + ["d_%02d" % (i,) for i in range(0, 16)]
         for input_file_name in args.rest:
             with open(input_file_name, "r") as input_fd:
@@ -43,26 +57,22 @@ def plot_insn_bitmap():
                 for row in reader:
                     if nrows >= args.maxrows:
                         break
-                    png_row = []
-                    for i in range(0, 16):
-                        field_value = int(row["d_%02d" % (i,)], 16)
-                        search_value = args.insn
-                        do_bw_match = False
-                        if do_bw_match:
-                            if field_value == search_value:
-                                png_row.append(0xff)
-                                png_row.append(0xff)
-                                png_row.append(0xff)
-                            else:
-                                png_row.append(0x00)
-                                png_row.append(0x00)
-                                png_row.append(0x00)
-                        else:
-                            png_row.append((field_value>>(0*8)) & 0xFF)
-                            png_row.append((field_value>>(1*8)) & 0xFF)
-                            png_row.append((field_value>>(2*8)) & 0xFF)
-
-                    png_matrix.append(png_row)
+                    for _y in range(0, args.scale):
+                        png_row = []
+                        for i in range(0, 16):
+                            field_value = int(row["d_%02d" % (i,)], 16)
+                            search_value = args.insn
+                            for _x in range(0, args.scale):
+                                if do_bw_match:
+                                    if field_value == search_value:
+                                        png_row.append(0xff)
+                                    else:
+                                        png_row.append(0x00)
+                                else:
+                                    png_row.append((field_value>>(0*8)) & 0xFF)
+                                    png_row.append((field_value>>(1*8)) & 0xFF)
+                                    png_row.append((field_value>>(2*8)) & 0xFF)
+                        png_matrix.append(png_row)
                     nrows += 1
             png_writer.write(png_file, png_matrix)
 
