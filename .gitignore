@@ -8,6 +8,7 @@ Module.symvers
 *.mod
 *.mod.o
 *.o
+*.x
 modules.order
 .*.swp
 *.dtb
