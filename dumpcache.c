@@ -442,7 +442,7 @@ static int __dump_index_resolve(int index, struct cache_set* buf)
 	rwc_p = &rwc;
 
 	for (way = 0; way < WAYS; way++) {
-		get_L2_tag(index, way, &physical_address);
+		get_L2_tag(way, index, &physical_address);
 		if (!physical_address) {
 			continue;
                 }
@@ -483,7 +483,7 @@ static int __dump_index_noresolve(int index, struct cache_set* buf)
 	// printk(KERN_INFO "__dump_index_noresolve %d %p\n", index, buf);
 
 	for (way = 0; way < WAYS; way++) {
-		get_L2_tag(index, way, &physical_address);
+		get_L2_tag(way, index, &physical_address);
 		if (!physical_address) {
 			continue;
                 }
@@ -507,7 +507,7 @@ static int __dump_L1Iinsn(int index, struct cache_set* buf)
   for (way = 0; way < L1IDATA_WAYS; way++) {
       buf->cachelines[way].pid = 777777;
       buf->cachelines[way].addr = 0x7777777777777777ULL;
-      get_L1Iinsn(index, way, instructions);
+      get_L1Iinsn(way, index, instructions);
       if (instructions[0] == 0) {  // TODO(robhenry):is 0 a legit insn?
           continue;
       }

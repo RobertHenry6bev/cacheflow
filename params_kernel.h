@@ -58,10 +58,10 @@ struct Cortex_L1_I_Insn_Bank_Line {
   struct Cortex_L1_I_Insn_Pair pair[2];
 };
 struct Cortex_L1_I_Insn_Bank {
-  struct Cortex_L1_I_Insn_Bank_Line set[256];
+  struct Cortex_L1_I_Insn_Bank_Line bank[4];
 };
 struct Cortex_L1_I_Insn_Way {
-  struct Cortex_L1_I_Insn_Bank bank[4];
+  struct Cortex_L1_I_Insn_Bank set[256];
 };
 struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];

@@ -34,13 +34,25 @@ void asm_ramindex_data_mrs(u32 *dldata, u8 sel) {
     printf("data_mrs sel=0x%x\n", sel);
     dldata[0] = 0xdead0000UL;
     dldata[1] = 0x1111deadUL;
-    // ...
 }
 
 #include "cache_operations.c"
 
 int main(int argc, const char **argv) {
-    get_Cortex_L1_Insn();
+    if (0) {
+        printf("MASK2(4,0) = 0x%08lx\n", MASK2(4,0));
+        printf("MASK2(3,0) = 0x%08lx\n", MASK2(3,0));
+        printf("MASK2(2,0) = 0x%08lx\n", MASK2(2,0));
+        printf("MASK2(1,0) = 0x%08lx\n", MASK2(1,0));
+        printf("MASK2(0,0) = 0x%08lx\n", MASK2(0,0));
+        printf("MASK2(4,1) = 0x%08lx\n", MASK2(4,1));
+        printf("MASK2(4,2) = 0x%08lx\n", MASK2(4,2));
+        printf("MASK2(4,3) = 0x%08lx\n", MASK2(4,3));
+        printf("MASK2(4,4) = 0x%08lx\n", MASK2(4,4));
+    }
+    if (1) {
+        get_Cortex_L1_Insn();
+    }
     if (0) {
         get_Cortex_L1_Tag();
     }
