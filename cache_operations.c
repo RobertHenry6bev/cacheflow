@@ -116,12 +116,14 @@ void print_Cortex_L1_Insn(FILE *outfp,
     uint32_t way, bank, set, pair;
     for (way = 0; way < 3; way++) {
         for (set = 0; set < 256; set++) {
+            const char *sep = "";
             for (bank = 0; bank < 4; bank++) {
                 for (pair = 0; pair < 2; pair++) {
                     const struct Cortex_L1_I_Insn_Pair *p =
                        &cache->way[way].set[set].bank[bank].pair[pair];
-                    fprintf(outfp, ",0x%08x,0x%08x",
-                        p->instruction[0], p->instruction[1]);
+                    fprintf(outfp, "%s0x%08x,0x%08x",
+                        sep, p->instruction[0], p->instruction[1]);
+                    sep = ",";
                 }
             }
             fprintf(outfp, "\n");
