@@ -823,6 +823,8 @@ void wait_completion(void)
 	timer_delete(timer);
 }
 
+#define DO_PRINT
+#include "../cache_operations.c"
 
 /* Entry function to interface with the kernel module via the proc interface */
 void read_cache_to_file(char * filename, int index) {
@@ -866,44 +868,16 @@ void read_cache_to_file(char * filename, int index) {
 		exit(EXIT_FAILURE);
 	}
 
-        if (0) {
-          // L1 I Tag
-          uint32_t way, bank, set;
-          struct Cortex_L1_I_Tag_Cache *cache =
-              (struct Cortex_L1_I_Tag_Cache *)cache_contents;
-          const char *sep = "";
-          for (way = 0; way < 3; way++) {
-              for (bank = 0; bank < 2; bank++) {
-                  for (set = 0; set < 128; set++) {
-                      struct Cortex_L1_I_Tag_Bank_Line *p =
-                        &cache->way[way].bank[bank].set[set];
-                      fprintf(outfp, "%s%d,%d,%d, 0x%08x, 0x%08x\n",
-                        sep, way, bank, set,
-                        p->u.d.meta, p->u.d.physical_address);
-                      sep = "";
-                  }
-              }
-          }
+    if (0) {
+       // L1 I Tag
+       print_Cortex_L1_Tag(outfp,
+           (const struct Cortex_L1_I_Tag_Cache *)cache_contents);
+
+
     } else if (1) {
       // L1 I Insn
-
-      uint32_t way, bank, set, pair;
-      struct Cortex_L1_I_Insn_Cache *cache =
-          (struct Cortex_L1_I_Insn_Cache *)cache_contents;
-      for (way = 0; way < 3; way++) {
-          for (set = 0; set < 256; set++) {
-              fprintf(outfp, "%d,%d", way, set);
-              for (bank = 0; bank < 4; bank++) {
-                  for (pair = 0; pair < 2; pair++) {
-                      struct Cortex_L1_I_Insn_Pair *p =
-                         &cache->way[way].bank[bank].set[set].pair[pair];
-                      fprintf(outfp, ",0x%08x,0x%08x",
-                          p->instruction[0], p->instruction[1]);
-                  }
-              }
-              fprintf(outfp, "\n");
-          }
-      }
+      print_Cortex_L1_Insn(outfp,
+          (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
 
     } else {
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {

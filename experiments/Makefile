@@ -30,7 +30,7 @@ data:
 
 CFLAGS = -O0 -g -Wall
 
-snapshot.x: snapshot.c Makefile
+snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 	gcc $(CFLAGS) -o $@ $< -lrt
 
 %.x: %.c Makefile
