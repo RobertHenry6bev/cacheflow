@@ -43,7 +43,9 @@ clean:
 	rm -f *.o *.x *.mp4 *.png *.mkv
 	rm -f data/*
 
-ALL_CSV := $(shell ls data/*.csv | head -50)
+MAX_FILES = 50
+MAX_FILES = 5000
+ALL_CSV := $(shell ls data/*.csv | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
 .PHONY: png_all
@@ -98,7 +100,7 @@ plot_insn: data/cachedump0012.png
 
 SCALE = 16
 data/%.png: data/%.csv plot_insn.py data/%.csv Makefile
-	python3 plot_insn.py --scale $(SCALE) --output $@ --maxrows=384 $<
+	python3 plot_insn.py --scale $(SCALE) --output $@ --maxrows=384 --hit_only $<
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py
