@@ -73,7 +73,10 @@ out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
           -pix_fmt yuv420p \
           -vf scale=16:128 \
           -loglevel quiet \
+          -s 54x128 \
           $@
+
+#          -vf scale=16:128 \
 
 .PHONY: png_all
 png_all: $(ALL_PNG) Makefile
@@ -85,7 +88,7 @@ png_all: $(ALL_PNG) Makefile
 	sudo apt-get install mencoder
 
 .PHONY: plot_insn
-plot_insn: data/cachedump0012.png
+plot_insn: data/cachedump0000.png
 
 SCALE = 16
 data/%.png: data/%.csv plot_insn.py Makefile
@@ -93,7 +96,6 @@ data/%.png: data/%.csv plot_insn.py Makefile
           --scale $(SCALE) \
           --output $@ \
           --maxrows=384 \
-          --hit_only \
           $<
 
 .PHONY: pylint

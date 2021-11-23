@@ -6,6 +6,7 @@ that is eyecatching when it is disassembled.
 import argparse
 
 class Generator:
+    """An assembly generator."""
     def __init__(self):
         self.byte_addr = 0
     def instruction(self, string):
@@ -21,7 +22,8 @@ class Generator:
         print("%s:" % (name,))
         self.byte_addr += 0
     def gen_branch_chain(self):
-        for i in range(0, 8):
+        """Print out a branch forward chain, skipping over icache markers."""
+        for _i in range(0, 8):
             self.instruction("b 1f")  # unconditional branch
             self.data(0xffffffff)
             self.data(self.byte_addr)
@@ -29,6 +31,9 @@ class Generator:
             self.label("1")
 
 def gen_arm64_instructions():
+    """Generate a bunch of interesting unique sequences of
+    arm64 instructions to flood the cache.
+    """
     parser = argparse.ArgumentParser("write interesting ARMv8 asm code")
     parser.add_argument(
         "--nblocks",
@@ -37,7 +42,7 @@ def gen_arm64_instructions():
         default=16,)
     args = parser.parse_args()
     gen = Generator()
-    for block in range(0, args.nblocks):
+    for _block in range(0, args.nblocks):
         gen.gen_branch_chain()
 
 if __name__ == "__main__":
