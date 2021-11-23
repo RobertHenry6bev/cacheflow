@@ -18,7 +18,7 @@ def plot_insn_bitmap():
         default=0x521f0000,)
     parser.add_argument(
         "--maxrows",
-        help="maximum number of rowsd",
+        help="maximum number of rows",
         type=int,
         default=32,)
     parser.add_argument(
@@ -48,7 +48,8 @@ def plot_insn_bitmap():
             args.scale*16,
             args.scale*args.maxrows,
             greyscale=do_bw_match)
-        fieldnames = ["a", "b"] + ["d_%02d" % (i,) for i in range(0, 16)]
+        # fieldnames = ["a", "b"] + ["d_%02d" % (i,) for i in range(0, 16)]
+        fieldnames = ["d_%02d" % (i,) for i in range(0, 16)]
         for input_file_name in args.rest:
             with open(input_file_name, "r") as input_fd:
                 reader = csv.DictReader(input_fd, fieldnames=fieldnames)
@@ -60,6 +61,7 @@ def plot_insn_bitmap():
                     for _y in range(0, args.scale):
                         png_row = []
                         for i in range(0, 16):
+                            # print("row=%s" % (row,))
                             field_value = int(row["d_%02d" % (i,)], 16)
                             search_value = args.insn
                             for _x in range(0, args.scale):

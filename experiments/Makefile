@@ -95,8 +95,8 @@ out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 plot_insn: data/cachedump0012.png
 
 SCALE = 16
-data/%.png: data/%.csv plot_insn.py plot_insn.py data/%.csv Makefile
-	python3 plot_insn.py --scale $(SCALE) --output $@ $<
+data/%.png: data/%.csv plot_insn.py data/%.csv Makefile
+	python3 plot_insn.py --scale $(SCALE) --output $@ --maxrows=384 $<
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py
