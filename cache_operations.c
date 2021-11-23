@@ -84,45 +84,50 @@ static int get_Cortex_L1_Tag(void) {
     return 0;
 }
 
-// #define SLOW_LOOP
-static int get_Cortex_L1_Insn(void) {
+//
+// Slow way to access with multiple loops
+// that ultimately should combine
+// to make a simple incrementing virtual_address.
+//
+static int get_Cortex_L1_Insn_Matrix(void) {
     uint32_t way;
-    struct Cortex_L1_I_Insn_Cache *cache =
-        (struct Cortex_L1_I_Insn_Cache *)cur_sample;
-    struct Cortex_L1_I_Insn_Pair *p = &cache->way[0].set[0].bank[0].pair[0];
+    union Cortex_L1_I_Insn_Cache_Union *cache =
+        (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
+    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
     for (way = 0; way < 3; way++) {
-#ifdef SLOW_LOOP
         uint32_t set, bank, pair;
-        foo bar
         for (set = 0; set < 256; set++) {
             for (bank = 0; bank < 4; bank++) {
                 for (pair = 0; pair < 2; pair++) {
-                    struct Cortex_L1_I_Insn_Pair *q =
-                        &cache->way[way].set[set].bank[bank].pair[pair];
+                    struct Cortex_L1_I_Insn_Pair *p =
+                        &cache->struct_data.way[way].set[set].bank[bank].pair[pair];
                     uint32_t va = (set << 6) | (bank << 4) | (pair << 3);
-#ifndef __KERNEL__
-                    assert (q == p);
-#else
-                    (void)q;
-#endif
-#ifdef TEST_DEBUG
-                    printf("way=%d set=%4d bank=%d pair=%d: va 0x%03x\n",
-                        way, set, bank, pair, va);
-#endif
-#else
-              uint32_t va;
-              for (va = 0; va < (1<<14); va += 8) {
-#endif
                     get_L1Iinsn(way, va, p->instruction);
-                    p += 1;
               }
-#ifdef SLOW_LOOP
             }
         }
-#endif
     }
     return 0;
 }
+
+static int get_Cortex_L1_Insn(void) {
+    uint32_t way;
+    union Cortex_L1_I_Insn_Cache_Union *cache =
+        (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
+    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
+
+    struct Cortex_L1_I_Insn_Pair *p =
+        (struct Cortex_L1_I_Insn_Pair *)&cache->vec_data[0];
+    for (way = 0; way < 3; way++) {
+        uint32_t va;
+        for (va = 0; va < (1<<14); va += 8) {
+            get_L1Iinsn(way, va, p->instruction);
+            p += 1;
+        }
+    }
+    return 0;
+}
+
 
 #endif  // DO_GET
 

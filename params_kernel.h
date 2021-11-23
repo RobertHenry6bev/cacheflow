@@ -66,6 +66,10 @@ struct Cortex_L1_I_Insn_Way {
 struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];
 };
+union Cortex_L1_I_Insn_Cache_Union {
+  struct Cortex_L1_I_Insn_Cache struct_data;  // struc
+  uint32_t vec_data[3*256*4*2*2]; // vector data
+};
 
 struct Cortex_L1_I_Tag_Bank_Line {
   pid_t pid;
