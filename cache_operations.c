@@ -3,7 +3,9 @@
 // Tag bank select ignored, 2MB L2 cache assumed.
 //
 
-// #include  <assert.h>  // non-kernel only
+#ifndef __KERNEL__
+#include  <assert.h>  // non-kernel only
+#endif
 
 #include "params_kernel.h"
 
@@ -32,13 +34,12 @@ static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	*dl1data |= (index << 5);
 }
 
-static inline void get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
+static inline void  __attribute__((always_inline))get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
   //
   // index is the virtual address. See figure 4-58
   //
-  u32 ramid    = 0x00;  // L1-I Tag RAM
   u32 ramindex = 0
-    | (ramid << 24)
+    | (0x00 << 24)
     | ((way & 0x3) << 18)
     | ((index << 6) & MASK2(13, 6))
     ;
@@ -50,22 +51,20 @@ static inline void get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
   // instructions[1] = 0x1111111UL;  // dummy 2-bit field: valid and non-secure id
 }
 
-static inline void get_L1Iinsn(u32 way, u32 va, u32 *instructions)
+static inline void  __attribute__((always_inline))get_L1Iinsn(u32 way, u32 va, u32 *instructions)
 {
-  //
-  // index is the virtual address. See figure 4-58
-  //
-  u32 ramid    = 0x01;  // L1-I Data RAM
-  // assert((va & 0x7) == 0);
+#ifndef __KERNEL__
+  assert((va & 0x7) == 0);
+#endif
   u32 ramindex = 0
-    | (ramid << 24)
+    | (0x01 << 24)
     | ((way & 0x3) << 18)
     | va
     ;
-  instructions[0] = 0;
-  instructions[1] = 0;
+  // instructions[0] = 0;
+  // instructions[1] = 0;
   asm_ramindex_msr("get_L1Iinsn", ramindex);
-  asm_ramindex_insn_mrs(instructions, 0x03);  // get insn[0] and insn[1]
+  asm_ramindex_insn_mrs(instructions, 0x03);
 }
 
 static int get_Cortex_L1_Tag(void) {
@@ -85,25 +84,42 @@ static int get_Cortex_L1_Tag(void) {
     return 0;
 }
 
+// #define SLOW_LOOP
 static int get_Cortex_L1_Insn(void) {
-    uint32_t way, bank, set, pair;
+    uint32_t way;
     struct Cortex_L1_I_Insn_Cache *cache =
         (struct Cortex_L1_I_Insn_Cache *)cur_sample;
+    struct Cortex_L1_I_Insn_Pair *p = &cache->way[0].set[0].bank[0].pair[0];
     for (way = 0; way < 3; way++) {
+#ifdef SLOW_LOOP
+        uint32_t set, bank, pair;
+        foo bar
         for (set = 0; set < 256; set++) {
             for (bank = 0; bank < 4; bank++) {
                 for (pair = 0; pair < 2; pair++) {
-                    struct Cortex_L1_I_Insn_Pair *p =
+                    struct Cortex_L1_I_Insn_Pair *q =
                         &cache->way[way].set[set].bank[bank].pair[pair];
                     uint32_t va = (set << 6) | (bank << 4) | (pair << 3);
+#ifndef __KERNEL__
+                    assert (q == p);
+#else
+                    (void)q;
+#endif
 #ifdef TEST_DEBUG
-                        printf("way=%d set=%4d bank=%d pair=%d: va 0x%03x\n",
-                            way, set, bank, pair, va);
+                    printf("way=%d set=%4d bank=%d pair=%d: va 0x%03x\n",
+                        way, set, bank, pair, va);
+#endif
+#else
+              uint32_t va;
+              for (va = 0; va < (1<<14); va += 8) {
 #endif
                     get_L1Iinsn(way, va, p->instruction);
-                }
+                    p += 1;
+              }
+#ifdef SLOW_LOOP
             }
         }
+#endif
     }
     return 0;
 }

@@ -17,12 +17,14 @@ all: run
 # -l	Do not acquire the memory layout of the observed benchmarks.
 # 
 
+PERIOD = 5
+PERIOD = 500
 .PHONY: run
 VICTIM = e10_benchmark.x
 VICTIM = e11_flood.x
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -f -o data $(PWD)/$(VICTIM)
+	sudo ./snapshot.x -p $(PERIOD) -f -o data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
 data:
