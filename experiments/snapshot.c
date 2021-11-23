@@ -12,6 +12,7 @@
 
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <limits.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -602,7 +603,10 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 void wrap_up (void)
 {
 	char * pathname;
-	int pids_fd, len, i;
+	int pids_fd;
+        ssize_t len;
+        int i;
+        ssize_t nwritten;
 
 	pathname = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
 
@@ -647,15 +651,18 @@ void wrap_up (void)
 
 	/* Write out number of snapshots */
 	len = sprintf(pathname, "%d\n", snapshots);
-	(void)write(pids_fd, pathname, len);
+	nwritten = write(pids_fd, pathname, len);
+        assert(nwritten == len);
 
 	/* Write out PID of parent process */
 	len = sprintf(pathname, "%d\n", getpid());
-	(void)write(pids_fd, pathname, len);
+	nwritten = write(pids_fd, pathname, len);
+        assert(nwritten == len);
 
 	for (i = 0; i < bm_count; ++i) {
-		len = sprintf(pathname, "%d\n", pids[i]);
-		(void)write(pids_fd, pathname, len);
+            len = sprintf(pathname, "%d\n", pids[i]);
+            nwritten = write(pids_fd, pathname, len);
+            assert(nwritten == len);
 	}
 
 	close(pids_fd);

@@ -19,6 +19,7 @@ all: run
 
 PERIOD = 5
 PERIOD = 500
+PERIOD = 50
 .PHONY: run
 VICTIM = e10_benchmark.x
 VICTIM = e11_flood.x

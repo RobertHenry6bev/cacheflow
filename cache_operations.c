@@ -126,13 +126,15 @@ static int get_Cortex_L1_Insn(void) {
 
 #endif  // DO_GET
 
-#ifdef DO_PRINT
+#ifdef DO_PRINT  // {
+
 void print_Cortex_L1_Insn(FILE *outfp,
       const struct Cortex_L1_I_Insn_Cache *cache) {
     uint32_t way, bank, set, pair;
     for (way = 0; way < 3; way++) {
         for (set = 0; set < 256; set++) {
-            const char *sep = "";
+            fprintf(outfp, "%d,%d", way, set);
+            const char *sep = ",";
             for (bank = 0; bank < 4; bank++) {
                 for (pair = 0; pair < 2; pair++) {
                     const struct Cortex_L1_I_Insn_Pair *p =
@@ -165,4 +167,4 @@ void print_Cortex_L1_Tag(FILE *outfp,
     }
 }
 
-#endif  // DO_PRINT
+#endif  // DO_PRINT }
