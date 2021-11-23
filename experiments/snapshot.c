@@ -647,15 +647,15 @@ void wrap_up (void)
 
 	/* Write out number of snapshots */
 	len = sprintf(pathname, "%d\n", snapshots);
-	write(pids_fd, pathname, len);
+	(void)write(pids_fd, pathname, len);
 
 	/* Write out PID of parent process */
 	len = sprintf(pathname, "%d\n", getpid());
-	write(pids_fd, pathname, len);
+	(void)write(pids_fd, pathname, len);
 
 	for (i = 0; i < bm_count; ++i) {
 		len = sprintf(pathname, "%d\n", pids[i]);
-		write(pids_fd, pathname, len);
+		(void)write(pids_fd, pathname, len);
 	}
 
 	close(pids_fd);

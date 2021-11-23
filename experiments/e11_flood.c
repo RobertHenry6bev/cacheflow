@@ -10,7 +10,8 @@
 
 int foo(int i) {
   int iterations;
-  for (iterations = 0; iterations < 1000*200; iterations++) {
+  // 30 * 1000 * 200 ==> 16 seconds
+  for (iterations = 0; iterations < 30*1000*200; iterations++) {
     asm(".rept 4096\neor w0, w0, 2\n.endr\n");  // 0x521f0000
   }
   return i;
@@ -35,7 +36,7 @@ int main() {
       foo_runner,
       &thread_arg[i]);
   }
-  sleep(10);
+  // sleep(10);
   for (i = 0; i < NTHREAD; i++) {
     pthread_join(worker_thread[i], NULL);
   }

@@ -28,7 +28,7 @@ run: snapshot.x $(VICTIM) | data
 data:
 	mkdir -p $@
 
-CFLAGS = -O0 -g -Wall
+CFLAGS = -O2 -g -Wall
 
 snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 	gcc $(CFLAGS) -o $@ $< -lrt
@@ -36,10 +36,10 @@ snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 %.x: %.c Makefile
 	gcc $(CFLAGS) -o $@ $< -lrt -lpthread
 
-
 .PHONY: clean
 clean:
 	rm -f *.o *.x *.mp4 *.png *.mkv
+	rm -f data/*
 
 ALL_CSV := $(shell ls data/*.csv | head -50)
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
