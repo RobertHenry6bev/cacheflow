@@ -34,7 +34,7 @@ static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	*dl1data |= (index << 5);
 }
 
-static inline void get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
+static inline void  __attribute__((always_inline))get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
   //
   // index is the virtual address. See figure 4-58
   //
@@ -51,7 +51,7 @@ static inline void get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
   // instructions[1] = 0x1111111UL;  // dummy 2-bit field: valid and non-secure id
 }
 
-static inline void get_L1Iinsn(u32 way, u32 va, u32 *instructions)
+static inline void  __attribute__((always_inline))get_L1Iinsn(u32 way, u32 va, u32 *instructions)
 {
 #ifndef __KERNEL__
   assert((va & 0x7) == 0);
@@ -84,14 +84,16 @@ static int get_Cortex_L1_Tag(void) {
     return 0;
 }
 
-#define SLOW_LOOP
+// #define SLOW_LOOP
 static int get_Cortex_L1_Insn(void) {
-    uint32_t way, bank, set, pair;
+    uint32_t way;
     struct Cortex_L1_I_Insn_Cache *cache =
         (struct Cortex_L1_I_Insn_Cache *)cur_sample;
     struct Cortex_L1_I_Insn_Pair *p = &cache->way[0].set[0].bank[0].pair[0];
     for (way = 0; way < 3; way++) {
 #ifdef SLOW_LOOP
+        uint32_t set, bank, pair;
+        foo bar
         for (set = 0; set < 256; set++) {
             for (bank = 0; bank < 4; bank++) {
                 for (pair = 0; pair < 2; pair++) {
@@ -100,6 +102,8 @@ static int get_Cortex_L1_Insn(void) {
                     uint32_t va = (set << 6) | (bank << 4) | (pair << 3);
 #ifndef __KERNEL__
                     assert (q == p);
+#else
+                    (void)q;
 #endif
 #ifdef TEST_DEBUG
                     printf("way=%d set=%4d bank=%d pair=%d: va 0x%03x\n",

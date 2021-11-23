@@ -6,7 +6,7 @@ run: load
 
 .PHONY: build
 build: dumpcache.ko
-dumpcache.ko: dumpcache.c dumpcache.mod.c
+dumpcache.ko: dumpcache.c dumpcache.mod.c cache_operations.c params_kernel.h
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 .PHONY: clean
