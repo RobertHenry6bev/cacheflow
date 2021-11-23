@@ -46,32 +46,14 @@ MAX_FILES = 5000
 ALL_CSV := $(shell ls data/*.csv | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
-.PHONY: png_all
-png_all: $(ALL_PNG) Makefile
-	tar czf png_capture.tgz $(ALL_PNG)
-	scp png_capture.tgz robhenry@qtm-ubnt-02:Downloads
-
 DURATION_NUM=10
 DURATION_DEN=1
-
-.PHONY: movie_all
-movie_all: out_new.mkv
-out_new.mkv: /usr/bin/mencoder $(ALL_PNG)
-	-rm -f $@
-	mencoder \
-          data/*.png -mf fps=2:type=png \
-          -ovc copy \
-          -o $@
-
-.PHONY: display_movie
-display_movie: out_new.mkv /usr/bin/vlc
-	/usr/bin/vlc $<
 
 #
 # From https://superuser.com/questions/249101/how-can-i-combine-30-000-images-into-a-timelapse-movie
 #
-.PHONY: old_movie_all
-old_movie_all: out.mp4
+.PHONY: movie_all
+movie_all: out.mp4
 out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 	-rm -f $@
 	ffmpeg \
@@ -83,9 +65,8 @@ out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
           -loglevel quiet \
           $@
 
-	scp $@ robhenry@qtm-ubnt-02:Downloads
-#          -s:v -xx:128 \
-#          -codec:v copy \
+.PHONY: png_all
+png_all: $(ALL_PNG) Makefile
 
 # WATCHOUT: this consumes a lot of space
 /usr/bin/ffmpeg:
@@ -97,8 +78,13 @@ out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 plot_insn: data/cachedump0012.png
 
 SCALE = 16
-data/%.png: data/%.csv plot_insn.py data/%.csv Makefile
-	python3 plot_insn.py --scale $(SCALE) --output $@ --maxrows=384 --hit_only $<
+data/%.png: data/%.csv plot_insn.py Makefile
+	python3 plot_insn.py \
+          --scale $(SCALE) \
+          --output $@ \
+          --maxrows=384 \
+          --hit_only \
+          $<
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py
