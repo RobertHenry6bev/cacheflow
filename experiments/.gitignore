@@ -7,3 +7,5 @@ data/
 *.mp4
 *.tgz
 *.mkv
+*.s
+*.objdump

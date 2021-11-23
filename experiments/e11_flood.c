@@ -8,11 +8,13 @@
 
 #include "params.h"
 
-int foo(int i) {
+int __attribute__((aligned (64))) __attribute__((noinline)) foo(int i) {
   int iterations;
   // 30 * 1000 * 200 ==> 16 seconds
   for (iterations = 0; iterations < 30*1000*200; iterations++) {
-    asm(".rept 4096\neor w0, w0, 2\n.endr\n");  // 0x521f0000
+    asm(".rept 14\nnop\n.endr\n");  // magic padding to make eor blocks align
+    asm(".include \"arm_insn_lines.s\"");
+    // asm(".rept 4096\neor w0, w0, 2\n.endr\n");  // 0x521f0000
   }
   return i;
 }

@@ -28,6 +28,10 @@ run: snapshot.x $(VICTIM) | data
 	sudo ./snapshot.x -p $(PERIOD) -f -o data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
+e11_flood.x: arm_insn_lines.s
+arm_insn_lines.s: gen_arm64_insn_lines.py Makefile
+	python3 gen_arm64_insn_lines.py --nblocks=1024 > $@
+
 data:
 	mkdir -p $@
 
@@ -38,6 +42,9 @@ snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 
 %.x: %.c Makefile
 	gcc $(CFLAGS) -o $@ $< -lrt -lpthread
+
+%.objdump: %.x
+	objdump --disassemble $< > $@
 
 .PHONY: clean
 clean:
