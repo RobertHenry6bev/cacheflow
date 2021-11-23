@@ -875,17 +875,12 @@ void read_cache_to_file(char * filename, int index) {
 		exit(EXIT_FAILURE);
 	}
 
-    if (0) {
-       // L1 I Tag
+    if (1) {
        print_Cortex_L1_Tag(outfp,
            (const struct Cortex_L1_I_Tag_Cache *)cache_contents);
-
-
-    } else if (1) {
-      // L1 I Insn
+    } else if (0) {
       print_Cortex_L1_Insn(outfp,
           (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
-
     } else {
 	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
             for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {

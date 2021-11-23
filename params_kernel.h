@@ -67,28 +67,32 @@ struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];
 };
 union Cortex_L1_I_Insn_Cache_Union {
-  struct Cortex_L1_I_Insn_Cache struct_data;  // struc
+  struct Cortex_L1_I_Insn_Cache struct_data;  // structured
   uint32_t vec_data[3*256*4*2*2]; // vector data
 };
 
-struct Cortex_L1_I_Tag_Bank_Line {
-  pid_t pid;
-  union {
-    uint32_t instruction[2];
+struct Cortex_L1_I_Tag_Pair {
+  uint32_t instruction[2];
+};
+struct Cortex_L1_I_Tag_Info {
+  // pid_t pid;  // pid placed into the high 28 bits of meta(?)
+  union overlay {
+    struct Cortex_L1_I_Tag_Pair tag_pair;
     struct raw_tag_ram_output {
-       uint32_t physical_address;
-       uint32_t meta;   // bit1: valid; bit0: non-secure ID
+       uint32_t physical_address;  // phsical address tag bits 43:12
+       uint32_t meta;              // bit1: valid; bit0: non-secure ID
     } d;
   } u;
 };
-struct Cortex_L1_I_Tag_Bank {
-  struct Cortex_L1_I_Tag_Bank_Line set[128];
-};
 struct Cortex_L1_I_Tag_Way {
-  struct Cortex_L1_I_Tag_Bank bank[2];
+  struct Cortex_L1_I_Tag_Info set[256]; // physical bank is bit 0
 };
 struct Cortex_L1_I_Tag_Cache {
   struct Cortex_L1_I_Tag_Way way[3];
+};
+union Cortex_L1_I_Tag_Cache_Union {
+  struct Cortex_L1_I_Tag_Cache struct_data;  // structured
+  uint32_t vec_data[3*256*2]; // vector data
 };
 
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H

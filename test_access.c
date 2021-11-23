@@ -55,9 +55,11 @@ int main(int argc, const char **argv) {
     }
     if (1) {
         get_Cortex_L1_Insn();
+        if (0) get_Cortex_L1_Insn_Matrix();  // old slow
     }
-    if (0) {
+    if (1) {
         get_Cortex_L1_Tag();
+        if (0) get_Cortex_L1_Tag_Matrix();  // old slow
     }
     return 0;
 }
