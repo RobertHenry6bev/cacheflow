@@ -29,8 +29,8 @@ def plot_insn_bitmap():
     parser.add_argument(
         "--hit_only",
         help="only show hits in grey scale",
-        type=bool,
-        default=True,)
+        action='store_true',
+        default=False,)
     parser.add_argument(
         "--output",
         help="name of output file",
@@ -71,9 +71,14 @@ def plot_insn_bitmap():
                                     else:
                                         png_row.append(0x00)
                                 else:
-                                    png_row.append((field_value>>(0*8)) & 0xFF)
-                                    png_row.append((field_value>>(1*8)) & 0xFF)
-                                    png_row.append((field_value>>(2*8)) & 0xFF)
+                                    if field_value == search_value:
+                                        png_row.append(0xff)
+                                        png_row.append(0xff)
+                                        png_row.append(0xff)
+                                    else:
+                                        png_row.append((field_value>>(0*8)) & 0xFF)
+                                        png_row.append((field_value>>(1*8)) & 0xFF)
+                                        png_row.append((field_value>>(2*8)) & 0xFF)
                         png_matrix.append(png_row)
                     nrows += 1
             png_writer.write(png_file, png_matrix)
