@@ -363,6 +363,7 @@ static inline void asm_ramindex_insn_mrs(u32 *ildata, u8 sel)
 	}
 }
 
+#define DO_GET
 #include "cache_operations.c"
 
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)

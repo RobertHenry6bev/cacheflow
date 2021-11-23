@@ -36,6 +36,9 @@ void asm_ramindex_data_mrs(u32 *dldata, u8 sel) {
     dldata[1] = 0x1111deadUL;
 }
 
+#define DO_GET
+// #define DO_PRINT
+
 #include "cache_operations.c"
 
 int main(int argc, const char **argv) {
