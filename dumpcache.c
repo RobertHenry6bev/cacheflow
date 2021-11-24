@@ -109,6 +109,8 @@ static int dump_all_indices(void);
 
 static int get_Cortex_L1_Insn(void);
 static int get_Cortex_L1_Tag(void);
+static int fill_Cortex_L1_Tag(void);
+
 static int get_Cortex_L1_Insn_Matrix(void);
 static int get_Cortex_L1_Tag_Matrix(void);
 
@@ -182,9 +184,12 @@ static int acquire_snapshot(void)
 	/* Perform cache snapshot */
         if (1) {
           get_Cortex_L1_Tag();
+          fill_Cortex_L1_Tag();
+
           if (0) get_Cortex_L1_Tag_Matrix();  // old slow
         } else if (0) {
           get_Cortex_L1_Insn();
+
           if (0) get_Cortex_L1_Insn_Matrix();  // old slow
         } else {
           dump_all_indices();
@@ -367,9 +372,6 @@ static inline void __attribute__((always_inline)) asm_ramindex_insn_mrs(u32 *ild
 	}
 }
 
-#define DO_GET
-#include "cache_operations.c"
-
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)
 {
 
@@ -427,57 +429,59 @@ bool invalid_func(struct vm_area_struct *vma, void *arg)
 	return false;
 }
 
+void phys_to_pid(u64 physical_address, struct cache_line *process_data_struct) {
+    struct page *derived_page;
+    struct rmap_walk_control rwc;
+
+    process_data_struct->pid = 0;
+    process_data_struct->addr = 0;
+
+    rwc.arg = process_data_struct;
+    rwc.rmap_one = rmap_one_func;
+    rwc.done = NULL; //done_func;
+    rwc.anon_lock = NULL;
+    rwc.invalid_vma = invalid_func;
+    derived_page = phys_to_page(physical_address);
+    if (rmap_walk_func) {
+      rmap_walk_func(derived_page, &rwc);
+    }
+}
+
+#define DO_GET
+#include "cache_operations.c"
+
 static int __dump_index_resolve(int index, struct cache_set* buf)
 {
 	int way;
-	u32 physical_address;
-	struct page* derived_page;
-	struct rmap_walk_control rwc;
-	struct rmap_walk_control * rwc_p;
-
-	/* This will be used to invoke address resolution */
-	struct cache_line process_data_struct;
-
-	// Instantiate rmap walk control struct
-	rwc.arg = &process_data_struct;
-	rwc.rmap_one = rmap_one_func;
-	rwc.done = NULL; //done_func;
-	rwc.anon_lock = NULL;
-	rwc.invalid_vma = invalid_func;
-	rwc_p = &rwc;
-
 	for (way = 0; way < WAYS; way++) {
-		get_L2_tag(way, index, &physical_address);
-		if (!physical_address) {
-			continue;
-                }
+            u32 physical_address;
+            get_L2_tag(way, index, &physical_address);
+            if (!physical_address) {
+                continue;
+            }
 
-		derived_page = phys_to_page(((u64)physical_address << 1));
+            // This is probably very L2 specific
+            (buf->cachelines[way]).pid = 0;
+            (buf->cachelines[way]).addr = ((u64)physical_address << 1);
 
-		// Initalize struct
-		(buf->cachelines[way]).pid = 0;
-		(buf->cachelines[way]).addr = ((u64)physical_address << 1);
+            {
+              struct cache_line process_data_struct;
+              process_data_struct.pid = 0;
+              process_data_struct.addr = 0;
+              phys_to_pid((u64)physical_address << 1, &process_data_struct);
 
-		/* Reset address */
-		process_data_struct.addr = 0;
-
-	        // This call populates the struct in rwc struct
-		if (rmap_walk_func) {
-                    rmap_walk_func(derived_page, rwc_p);
-                }
-
-		// Fill cacheline struct with values obtained
-                // from rmap_walk_func
-		(buf->cachelines[way]).pid = process_data_struct.pid;
-		if(process_data_struct.addr != 0) {
+              (buf->cachelines[way]).pid = process_data_struct.pid;
+              if (process_data_struct.addr != 0) {
 #if FULL_ADDRESS == 0
-			(buf->cachelines[way]).addr = process_data_struct.addr;
+                (buf->cachelines[way]).addr = process_data_struct.addr |
+                    0;
 #else
-			(buf->cachelines[way]).addr = process_data_struct.addr | (((u64)physical_address << 1) & 0xfff);
+                (buf->cachelines[way]).addr = process_data_struct.addr |
+                    (((u64)physical_address << 1) & 0xfff);
 #endif
-		}
+              }
+            }
 	}
-
 	return 0;
 }
 

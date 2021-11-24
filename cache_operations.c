@@ -18,6 +18,7 @@
 #define MASK2(ub, lb) (((0x1UL<<((ub)-(lb)+1)) - 1) << lb)
 
 #ifdef DO_GET
+
 static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
 	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
@@ -36,14 +37,11 @@ static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	*dl1data |= (index << 5);
 }
 
-static inline void  __attribute__((always_inline)) get_L1Itag(u32 way, u32 index, uint32_t *instructions) {
-  //
-  // index is the virtual address. See figure 4-58
-  //
+static inline void  __attribute__((always_inline)) get_L1Itag(u32 way, u32 va, uint32_t *instructions) {
   u32 ramindex = 0
     | (0x00 << 24)
     | ((way & 0x3) << 18)
-    | ((index << 6) & MASK2(13, 6))
+    | ((va << 6) & MASK2(13, 6))
     ;
   // instructions[0] = 0;
   // instructions[1] = 0;
@@ -82,6 +80,11 @@ static int get_Cortex_L1_Tag_Matrix(void) {
     return 0;
 }
 
+//
+// Read from the L1_Tag as quickly as possible.
+// We'll go through the data later in fill_Cortex_L1_Tag
+// and map physaddrs to pids.
+//
 static int get_Cortex_L1_Tag(void) {
     uint32_t way;
     union Cortex_L1_I_Tag_Cache_Union *cache =
@@ -93,7 +96,48 @@ static int get_Cortex_L1_Tag(void) {
         uint32_t va;
         // (1<<14)/64 == 256 steps
         for (va = 0; va < (1<<14); va += 64) {
-            get_L1Itag(way, va, p->instruction);
+            get_L1Itag(way, va, p->instruction); // gets 2 32-bit "insns"[sic]
+            p += 1;
+        }
+    }
+    return 0;
+}
+
+static int fill_Cortex_L1_Tag(void) {
+    uint32_t way;
+    union Cortex_L1_I_Tag_Cache_Union *cache =
+        (union Cortex_L1_I_Tag_Cache_Union *)cur_sample;
+    struct Cortex_L1_I_Tag_Pair *p =
+        (struct Cortex_L1_I_Tag_Pair *)&cache->vec_data[0];
+    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
+    for (way = 0; way < 3; way++) {
+        uint32_t va;
+        // (1<<14)/64 == 256 steps
+        for (va = 0; va < (1<<14); va += 64) {
+            int valid = (p->instruction[1] >> 1) & 0x1;
+            int ident = (p->instruction[1] >> 0) & 0x1;
+            (void)ident;
+            p->instruction[1] &= 0xffff;  // knock out upper 16 bits to hold pid
+            if (valid) {
+                struct cache_line process_data_struct;
+                //
+                // The 2 bits in "common" need not be identical,
+                // and that's observed empirically
+                //
+                // bits va[13:12] are lost.  They overlap the bottom 2 bits
+                // of the phys address
+                //
+                uint64_t pa = p->instruction[0] << 12; // bits 43:12
+                pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
+                phys_to_pid(pa, &process_data_struct);
+                printk(KERN_INFO
+                    "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
+                    way, va>>6,
+                    va, pa,
+                    process_data_struct.pid,
+                    process_data_struct.pid);
+                p->instruction[1] |= (process_data_struct.pid << 16);
+            }
             p += 1;
         }
     }

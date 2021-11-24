@@ -79,7 +79,7 @@ struct Cortex_L1_I_Tag_Info {
   union overlay {
     struct Cortex_L1_I_Tag_Pair tag_pair;
     struct raw_tag_ram_output {
-       uint32_t physical_address;  // phsical address tag bits 43:12
+       uint32_t physical_address;  // physical address tag bits 43:12
        uint32_t meta;              // bit1: valid; bit0: non-secure ID
     } d;
   } u;
