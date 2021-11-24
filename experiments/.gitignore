@@ -9,3 +9,4 @@ data/
 *.mkv
 *.s
 *.objdump
+*.out

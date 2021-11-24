@@ -8,19 +8,32 @@
 
 #include "params.h"
 
-int __attribute__((aligned (64))) __attribute__((noinline)) foo(int i) {
-  int iterations;
-  // 30 * 1000 * 200 ==> 16 seconds
-  for (iterations = 0; iterations < 30*1000*200; iterations++) {
-    asm(".rept 14\nnop\n.endr\n");  // magic padding to make eor blocks align
-    asm(".include \"arm_insn_lines.s\"");
-    // asm(".rept 4096\neor w0, w0, 2\n.endr\n");  // 0x521f0000
-  }
-  return i;
-}
+#include "flooders.c.out"
+
+typedef int(*foorunner)(int);
+static foorunner foorunners[] = {
+  foo_0x0,
+  foo_0x1,
+  foo_0x2,
+  foo_0x3,
+  foo_0x4,
+  foo_0x5,
+  foo_0x6,
+  foo_0x7,
+  foo_0x8,
+  foo_0x9,
+  foo_0xa,
+  foo_0xb,
+  foo_0xc,
+  foo_0xd,
+  foo_0xe,
+  foo_0xf,
+};
 
 void *foo_runner(void *vp) {
-  int i = foo(*(int *)vp);
+  int runner_number = getpid() % 16;
+  printf("runner_number=%d\n", runner_number);
+  int i = foorunners[runner_number](*(int *)vp);
   (void)i;
   return NULL;
 }
