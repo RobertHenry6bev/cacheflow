@@ -35,8 +35,8 @@
 //TODO(robhenry); These are probably specific to the Cortex A72(?) L2 Tag
 //
 #define NUM_CACHESETS 2048     // L2 Tag
-#define CACHESIZE 1024*1024*2     // L2 Tag
-#define NUM_CACHELINES 16     // L2 Tag (?)
+#define CACHESIZE 1024*1024*2     // L2 Unified Data
+#define NUM_CACHELINES 16     // L2 Tag  (number of ways)
 
 struct cache_line {
 	pid_t pid;
@@ -48,7 +48,7 @@ struct cache_set {
 };
 
 struct cache_sample {
-	struct cache_set sets[NUM_CACHESETS * 4];  // TODO(robhenry): *4 added to bring up to max size
+	struct cache_set sets[NUM_CACHESETS * 4];  // TODO(robhenry): *4 added to bring up to max size of parallel data structs
 };
 
 // ----------------------------------------- rob henry new, below
@@ -76,6 +76,13 @@ struct Cortex_L1_I_Insn_Cache {
 };
 
 // -------------------
+//
+// This is fora 1Mbyte L2 cache,
+// as found on a Raspberry Pi 4 ARM Cortex-A72 by Broadcom BCM2711
+//
+#define Cortex_L2_NROW 1024
+#define Cortex_L2_NWAY   16
+
 struct Cortex_L2_Unif_Tag {
   pid_t pid;
   uint32_t raw[2];
@@ -86,16 +93,16 @@ struct Cortex_L2_Unif_Quad {
 };
 
 struct Cortex_L2_Unif_Bank {
-  // struct Cortex_L2_Unif_Tag tag;  // TODO(robhenry) left out while fiddle with data structs
+  struct Cortex_L2_Unif_Tag tag;
   struct Cortex_L2_Unif_Quad quad[4];
 };
 
 struct Cortex_L2_Unif_Way {
-  struct Cortex_L2_Unif_Bank set[2048];
+  struct Cortex_L2_Unif_Bank set[Cortex_L2_NROW];
 };
 
 struct Cortex_L2_Unif_Cache {
-  struct Cortex_L2_Unif_Way way[16];
+  struct Cortex_L2_Unif_Way way[Cortex_L2_NWAY];
 };
 
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H

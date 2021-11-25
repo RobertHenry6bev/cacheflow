@@ -6,16 +6,11 @@ make e11_flood.x snapshot.x
 rm -f data/* || true
 
 if true ; then
-  ./e11_flood.x &
-  printf "%4d 0x%04x\n" $! $!
-
-  ./e11_flood.x &
-  printf "%4d 0x%04x\n" $! $!
-
-  # ./e11_flood.x &
-  # printf "%4d 0x%04x\n" $! $!
-
+  for ((i=0;i<16;i++)) ; do
+    ./e11_flood.x &
+    printf "%4d 0x%04x\n" $! $!
+  done
   sleep 1
 fi
 
-make PERIOD=50 run
+make PERIOD=500 run

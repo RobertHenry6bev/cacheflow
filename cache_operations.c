@@ -144,13 +144,15 @@ static int get_Cortex_L2_Unif(void) {
     uint32_t way;
     struct Cortex_L2_Unif_Cache *cache =
         (struct Cortex_L2_Unif_Cache *)cur_sample;
-    printk(KERN_INFO "XXX sizeof Cortex_l2_Unif_Cache=%ld\n",
-        sizeof(struct Cortex_L2_Unif_Cache));
-    printk(KERN_INFO "XXX sizeof struct cache_sample=%ld\n",
-        sizeof(struct cache_sample));
-    for (way = 0; way < 16; way++) {
+    if (0) {
+      printk(KERN_INFO "sizeof Cortex_l2_Unif_Cache=%ld\n",
+          sizeof(struct Cortex_L2_Unif_Cache));
+      printk(KERN_INFO "sizeof struct cache_sample=%ld\n",
+          sizeof(struct cache_sample));
+    }
+    for (way = 0; way < Cortex_L2_NWAY; way++) {
         uint32_t set;
-        for (set = 0; set < 2048; set++) {
+        for (set = 0; set < Cortex_L2_NROW; set++) {
             uint32_t pa = (set << 6);
             struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
             int quad;
@@ -205,14 +207,17 @@ void print_Cortex_L1_Insn(FILE *outfp,
 
 void print_Cortex_L2_Unif(FILE *outfp,
       const struct Cortex_L2_Unif_Cache *cache) {
-    assert(sizeof(struct Cortex_L2_Unif_Cache) == 2 * 1024 * 1024);  // true only when no tag info
+    size_t L2_size =
+        sizeof(struct Cortex_L2_Unif_Cache)
+      - Cortex_L2_NWAY * Cortex_L2_NROW * sizeof(struct Cortex_L2_Unif_Tag);
+    assert(L2_size == 1 * 1024 * 1024);  // true for Rasperry Pi4 BCM2711
     uint32_t way, set, quad;
-    for (way = 0; way < 16; way++) {
-        for (set = 0; set < 2048; set++) {
+    for (way = 0; way < Cortex_L2_NWAY; way++) {
+        for (set = 0; set < Cortex_L2_NROW; set++) {
             const struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
             (void)p;
-            fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
-                way, set,
+            fprintf(outfp, "%2d,%4d,  %d,0x%04x, 0x%08x,0x%08x ",
+                way, set%1024,  // DO NOT COMMIT
                 #if 1
                 0, 0, 0, 0
                 #else
