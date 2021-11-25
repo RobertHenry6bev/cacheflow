@@ -11,13 +11,12 @@
 
 #include "params_kernel.h"
 
-
 //
 // Returns a mask from inclusive bit ub to inclusive bit lb
 //
 #define MASK2(ub, lb) (((0x1UL<<((ub)-(lb)+1)) - 1) << lb)
 
-#ifdef DO_GET
+#ifdef DO_GET  // {
 
 static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
@@ -64,25 +63,36 @@ static inline void  __attribute__((always_inline)) get_L1Iinsn(u32 way, u32 va, 
   asm_ramindex_insn_mrs(instructions, 0x03);
 }
 
-//
-// Slow way to access with multiple loops
-// that ultimately should combine
-// to make a simple incrementing virtual_address.
-//
-static int get_Cortex_L1_Insn_Matrix(void) {
+static inline void  __attribute__((always_inline)) get_L2UData(u32 way, u32 pa, uint32_t *data)
+{
+  u32 ramindex = 0;
+  assert((pa & 0xf) == 0);
+  ramindex = 0
+    | (0x011 << 24)
+    | ((way & 0xf) << 18)
+    | pa
+    ;
+  // data[0] = 0;
+  // data[1] = 0;
+  // data[2] = 0;
+  // data[3] = 0;
+  asm_ramindex_msr("get_L2UData", ramindex);
+  asm_ramindex_data_mrs(data, 0x0f);  // request all 4 items
+}
+
+static int get_Cortex_L1_Insn(void) {
     uint32_t way;
-    union Cortex_L1_I_Insn_Cache_Union *cache =
-        (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
-    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
+    struct Cortex_L1_I_Insn_Cache *cache =
+        (struct Cortex_L1_I_Insn_Cache *)cur_sample;
     for (way = 0; way < 3; way++) {
         uint32_t set, pair;
         for (set = 0; set < 256; set++) {
             uint32_t va = (set << 6);
-            struct Cortex_L1_I_Insn_Bank *p = &cache->struct_data.way[way].set[set];
+            struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
             get_L1Itag(way, va, p->tag.raw); // gets 2 32-bit values
             for (pair = 0; pair < 4*2; pair++) {
                 struct Cortex_L1_I_Insn_Pair *p =
-                    &cache->struct_data.way[way].set[set].pair[pair];
+                    &cache->way[way].set[set].pair[pair];
                 uint32_t va = (set << 6) | /*(bank << 4) |*/ (pair << 3);
                 get_L1Iinsn(way, va, p->instruction);
             }
@@ -91,16 +101,15 @@ static int get_Cortex_L1_Insn_Matrix(void) {
     return 0;
 }
 
-static int fill_Cortex_L1_Insn_Matrix(void) {
+static int fill_Cortex_L1_Insn(void) {
     uint32_t way;
-    union Cortex_L1_I_Insn_Cache_Union *cache =
-        (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
-    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
+    struct Cortex_L1_I_Insn_Cache *cache =
+        (struct Cortex_L1_I_Insn_Cache *)cur_sample;
     for (way = 0; way < 3; way++) {
         uint32_t set;
         for (set = 0; set < 256; set++) {
             uint32_t va = (set << 6);
-            struct Cortex_L1_I_Insn_Bank *p = &cache->struct_data.way[way].set[set];
+            struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
             int valid = (p->tag.raw[1] >> 1) & 0x1;
             int ident = (p->tag.raw[1] >> 0) & 0x1;
             (void)ident;
@@ -116,7 +125,6 @@ static int fill_Cortex_L1_Insn_Matrix(void) {
                 uint64_t pa = p->tag.raw[0] << 12; // bits 43:12
                 pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
                 phys_to_pid(pa, &process_data_struct);
-#if 1
                 if (0 && process_data_struct.pid != 0) {
                     printk(KERN_INFO
                         "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
@@ -125,7 +133,6 @@ static int fill_Cortex_L1_Insn_Matrix(void) {
                         process_data_struct.pid,
                         process_data_struct.pid);
                 }
-#endif
                 p->tag.pid = process_data_struct.pid;
             }
         }
@@ -133,7 +140,40 @@ static int fill_Cortex_L1_Insn_Matrix(void) {
     return 0;
 }
 
-#endif  // DO_GET
+static int get_Cortex_L2_Unif(void) {
+    uint32_t way;
+    struct Cortex_L2_Unif_Cache *cache =
+        (struct Cortex_L2_Unif_Cache *)cur_sample;
+    printk(KERN_INFO "XXX sizeof Cortex_l2_Unif_Cache=%ld\n",
+        sizeof(struct Cortex_L2_Unif_Cache));
+    printk(KERN_INFO "XXX sizeof struct cache_sample=%ld\n",
+        sizeof(struct cache_sample));
+    for (way = 0; way < 16; way++) {
+        uint32_t set;
+        for (set = 0; set < 2048; set++) {
+            uint32_t pa = (set << 6);
+            struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
+            int quad;
+            (void)pa;
+            (void)p;
+            // get_L2Itag(way, pa, p->tag.raw); // gets 2 32-bit values for tag
+            for (quad = 0; quad < 4; quad++) {
+                struct Cortex_L2_Unif_Quad *p =
+                    &cache->way[way].set[set].quad[quad];
+                uint32_t pa = (set << 6) | (quad << 4);
+                get_L2UData(way, pa, p->instruction);
+            }
+        }
+    }
+    return 0;
+}
+
+static int fill_Cortex_L2_Unif(void) {
+  // TODO(robhenry)
+  return -1;
+}
+
+#endif  // DO_GET }
 
 #ifdef DO_PRINT  // {
 
@@ -156,6 +196,41 @@ void print_Cortex_L1_Insn(FILE *outfp,
                     sep,
                     p->instruction[0],
                     p->instruction[1]);
+                sep = ",";
+            }
+            fprintf(outfp, "\n");
+        }
+    }
+}
+
+void print_Cortex_L2_Unif(FILE *outfp,
+      const struct Cortex_L2_Unif_Cache *cache) {
+    assert(sizeof(struct Cortex_L2_Unif_Cache) == 2 * 1024 * 1024);  // true only when no tag info
+    uint32_t way, set, quad;
+    for (way = 0; way < 16; way++) {
+        for (set = 0; set < 2048; set++) {
+            const struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
+            (void)p;
+            fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
+                way, set,
+                #if 1
+                0, 0, 0, 0
+                #else
+                p->tag.pid, p->tag.pid,
+                p->tag.raw[1],
+                p->tag.raw[0]
+                #endif
+                );
+            const char *sep = ",";
+            for (quad = 0; quad < 4; quad++) {
+                const struct Cortex_L2_Unif_Quad *p =
+                   &cache->way[way].set[set].quad[quad];
+                fprintf(outfp, "%s0x%08x,0x%08x,0x%08x,0x%08x",
+                    sep,
+                    p->instruction[0],
+                    p->instruction[1],
+                    p->instruction[2],
+                    p->instruction[3]);
                 sep = ",";
             }
             fprintf(outfp, "\n");

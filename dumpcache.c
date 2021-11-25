@@ -107,8 +107,11 @@ static int dumpcache_open (struct inode *inode, struct file *filp);
 static int dump_index(int index, struct cache_set* buf);
 static int dump_all_indices(void);
 
-static int get_Cortex_L1_Insn_Matrix(void);
-static int fill_Cortex_L1_Insn_Matrix(void);
+static int get_Cortex_L1_Insn(void);
+static int fill_Cortex_L1_Insn(void);
+
+static int get_Cortex_L2_Unif(void);
+static int fill_Cortex_L2_Unif(void);
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
@@ -178,9 +181,12 @@ static int acquire_snapshot(void)
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
-        if (1) {
-          get_Cortex_L1_Insn_Matrix();
-          fill_Cortex_L1_Insn_Matrix();
+        if (0) {
+          get_Cortex_L1_Insn();
+          fill_Cortex_L1_Insn();
+        } else if (1) {
+          get_Cortex_L2_Unif();
+          fill_Cortex_L2_Unif();
         } else {
           dump_all_indices();
         }

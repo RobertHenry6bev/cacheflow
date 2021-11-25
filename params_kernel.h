@@ -48,10 +48,10 @@ struct cache_set {
 };
 
 struct cache_sample {
-	struct cache_set sets[NUM_CACHESETS];
+	struct cache_set sets[NUM_CACHESETS * 4];  // TODO(robhenry): *4 added to bring up to max size
 };
 
-// -----------------------------------------
+// ----------------------------------------- rob henry new, below
 
 struct Cortex_L1_I_Tag {
   pid_t pid;
@@ -64,7 +64,7 @@ struct Cortex_L1_I_Insn_Pair {
 
 struct Cortex_L1_I_Insn_Bank {
   struct Cortex_L1_I_Tag tag;
-  struct Cortex_L1_I_Insn_Pair pair[4*2];
+  struct Cortex_L1_I_Insn_Pair pair[8];
 };
 
 struct Cortex_L1_I_Insn_Way {
@@ -75,9 +75,27 @@ struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];
 };
 
-union Cortex_L1_I_Insn_Cache_Union {
-  struct Cortex_L1_I_Insn_Cache struct_data;  // structured
-  uint32_t vec_data[3*256*4*2*2]; // vector data
+// -------------------
+struct Cortex_L2_Unif_Tag {
+  pid_t pid;
+  uint32_t raw[2];
+};
+
+struct Cortex_L2_Unif_Quad {
+  uint32_t instruction[4];
+};
+
+struct Cortex_L2_Unif_Bank {
+  // struct Cortex_L2_Unif_Tag tag;  // TODO(robhenry) left out while fiddle with data structs
+  struct Cortex_L2_Unif_Quad quad[4];
+};
+
+struct Cortex_L2_Unif_Way {
+  struct Cortex_L2_Unif_Bank set[2048];
+};
+
+struct Cortex_L2_Unif_Cache {
+  struct Cortex_L2_Unif_Way way[16];
 };
 
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H
