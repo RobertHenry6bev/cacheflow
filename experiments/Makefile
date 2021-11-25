@@ -65,17 +65,14 @@ DURATION_DEN=1
 movie_all: out.mp4
 out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 	-rm -f $@
-	ffmpeg \
-          -f image2 \
-          -r ${DURATION_NUM}/${DURATION_DEN} \
+	/usr/bin/ffmpeg \
+          -r 3/1 \
           -i data/cachedump%04d.png \
-          -pix_fmt yuv420p \
-          -vf scale=16:128 \
-          -loglevel quiet \
-          -s 54x128 \
+          -r 24 \
+          -c:v libx264 \
+          -pix_fmt \
+          yuv420p \
           $@
-
-#          -vf scale=16:128 \
 
 .PHONY: png_all
 png_all: $(ALL_PNG) Makefile
@@ -89,10 +86,10 @@ png_all: $(ALL_PNG) Makefile
 .PHONY: plot_insn
 plot_insn: data/cachedump0000.png
 
-SCALE = 16
+PNG_SCALE = 2
 data/%.png: data/%.csv plot_insn.py Makefile
 	python3 plot_insn.py \
-          --scale $(SCALE) \
+          --scale $(PNG_SCALE) \
           --output $@ \
           --maxrows=384 \
           $<

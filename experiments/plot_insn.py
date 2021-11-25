@@ -136,7 +136,7 @@ def plot_insn_bitmap():
 def consume_csv_file(input_fd, args, png_file,
       simple_line_stats, wayset_line_stats):
     """Read a csv file, possibliy writing a png_file, doing analysis."""
-    fieldnames = ["way", "set"] + ["d_%02d" % (i,) for i in range(0, 16)]
+    fieldnames = ["way", "set"] + ["pid", "pid_x"] + ["t1" + "t0"] + ["d_%02d" % (i,) for i in range(0, 16)]
     reader = csv.DictReader(input_fd, fieldnames=fieldnames)
     #
     # Read all rows, and store internally,
