@@ -28,34 +28,7 @@ run: snapshot.x $(VICTIM) | data
 	sudo ./snapshot.x -p $(PERIOD) -f -o data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
-e11_flood.x: \
-  flooders.c.out \
-  arm_insn_lines_0x0.s \
-  arm_insn_lines_0x1.s \
-  arm_insn_lines_0x2.s \
-  arm_insn_lines_0x3.s \
-  arm_insn_lines_0x4.s \
-  arm_insn_lines_0x5.s \
-  arm_insn_lines_0x6.s \
-  arm_insn_lines_0x7.s \
-  arm_insn_lines_0x8.s \
-  arm_insn_lines_0x9.s \
-  arm_insn_lines_0xa.s \
-  arm_insn_lines_0xb.s \
-  arm_insn_lines_0xc.s \
-  arm_insn_lines_0xd.s \
-  arm_insn_lines_0xe.s \
-  arm_insn_lines_0xf.s \
-  $(NULL)
-
-flooders.c.out: gen_arm64_flood.py
-	python3 $< >$@
-
-arm_insn_lines_%.s: gen_arm64_insn_lines.py Makefile
-	python3 gen_arm64_insn_lines.py \
-            --value `echo $@ | sed -e 's/.*_0x/0x/' -e 's/\\.s$$//' ` \
-            --nblocks=1024 \
-            > $@
+e11_flood.x: e11_flood.c
 
 data:
 	mkdir -p $@
