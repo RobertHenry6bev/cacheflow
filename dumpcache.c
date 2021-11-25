@@ -179,10 +179,10 @@ static int acquire_snapshot(void)
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
-        if (1) {
+        if (0) {
           get_Cortex_L1_Insn();
           fill_Cortex_L1_Insn();
-        } else if (0) {
+        } else if (1) {
           get_Cortex_L2_Unif();
           fill_Cortex_L2_Unif();
         }
