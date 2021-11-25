@@ -182,12 +182,12 @@ static int acquire_snapshot(void)
 	on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
 	/* Perform cache snapshot */
-        if (1) {
+        if (0) {
           get_Cortex_L1_Tag();
           fill_Cortex_L1_Tag();
 
           if (0) get_Cortex_L1_Tag_Matrix();  // old slow
-        } else if (0) {
+        } else if (1) {
           get_Cortex_L1_Insn();
 
           if (0) get_Cortex_L1_Insn_Matrix();  // old slow

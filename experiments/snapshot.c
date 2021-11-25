@@ -875,10 +875,10 @@ void read_cache_to_file(char * filename, int index) {
 		exit(EXIT_FAILURE);
 	}
 
-    if (1) {
+    if (0) {
        print_Cortex_L1_Tag(outfp,
            (const struct Cortex_L1_I_Tag_Cache *)cache_contents);
-    } else if (0) {
+    } else if (1) {
       print_Cortex_L1_Insn(outfp,
           (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
     } else {
