@@ -51,14 +51,17 @@ struct cache_sample {
 	struct cache_set sets[NUM_CACHESETS];
 };
 
+struct Cortex_L1_I_Tag_Pair {
+  uint32_t instruction[2];
+};
+
 struct Cortex_L1_I_Insn_Pair {
   uint32_t instruction[2];
 };
-struct Cortex_L1_I_Insn_Bank_Line {
-  struct Cortex_L1_I_Insn_Pair pair[2];
-};
 struct Cortex_L1_I_Insn_Bank {
-  struct Cortex_L1_I_Insn_Bank_Line bank[4];
+  pid_t pid;
+  struct Cortex_L1_I_Tag_Pair tag;
+  struct Cortex_L1_I_Insn_Pair pair[4*2];
 };
 struct Cortex_L1_I_Insn_Way {
   struct Cortex_L1_I_Insn_Bank set[256];
@@ -71,9 +74,6 @@ union Cortex_L1_I_Insn_Cache_Union {
   uint32_t vec_data[3*256*4*2*2]; // vector data
 };
 
-struct Cortex_L1_I_Tag_Pair {
-  uint32_t instruction[2];
-};
 struct Cortex_L1_I_Tag_Info {
   // pid_t pid;  // pid placed into the high 28 bits of meta(?)
   union overlay {

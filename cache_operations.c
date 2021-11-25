@@ -130,12 +130,14 @@ static int fill_Cortex_L1_Tag(void) {
                 uint64_t pa = p->instruction[0] << 12; // bits 43:12
                 pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
                 phys_to_pid(pa, &process_data_struct);
+#if 0
                 printk(KERN_INFO
                     "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
                     way, va>>6,
                     va, pa,
                     process_data_struct.pid,
                     process_data_struct.pid);
+#endif
                 p->instruction[1] |= (process_data_struct.pid << 16);
             }
             p += 1;
@@ -155,21 +157,67 @@ static int get_Cortex_L1_Insn_Matrix(void) {
         (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
     assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
     for (way = 0; way < 3; way++) {
-        uint32_t set, bank, pair;
+        uint32_t set, pair;
         for (set = 0; set < 256; set++) {
-            for (bank = 0; bank < 4; bank++) {
-                for (pair = 0; pair < 2; pair++) {
-                    struct Cortex_L1_I_Insn_Pair *p =
-                        &cache->struct_data.way[way].set[set].bank[bank].pair[pair];
-                    uint32_t va = (set << 6) | (bank << 4) | (pair << 3);
-                    get_L1Iinsn(way, va, p->instruction);
-              }
+            uint32_t va = (set << 6) /* | (bank << 4) | (pair << 3) */;
+            struct Cortex_L1_I_Insn_Bank *p = &cache->struct_data.way[way].set[set];
+            get_L1Itag(way, va, p->tag.instruction); // gets 2 32-bit "insns"[sic]
+            for (pair = 0; pair < 4*2; pair++) {
+                struct Cortex_L1_I_Insn_Pair *p =
+                    &cache->struct_data.way[way].set[set].pair[pair];
+                uint32_t va = (set << 6) | /*(bank << 4) |*/ (pair << 3);
+                get_L1Iinsn(way, va, p->instruction);
             }
         }
     }
     return 0;
 }
 
+static int fill_Cortex_L1_Insn_Matrix(void) {
+    uint32_t way;
+    union Cortex_L1_I_Insn_Cache_Union *cache =
+        (union Cortex_L1_I_Insn_Cache_Union *)cur_sample;
+    assert(sizeof(cache->struct_data) == sizeof(cache->vec_data));
+    for (way = 0; way < 3; way++) {
+        uint32_t set;
+        for (set = 0; set < 256; set++) {
+            uint32_t va = (set << 6) /* | (bank << 4) | (pair << 3) */;
+            struct Cortex_L1_I_Insn_Bank *p = &cache->struct_data.way[way].set[set];
+            int valid = (p->tag.instruction[1] >> 1) & 0x1;
+            int ident = (p->tag.instruction[1] >> 0) & 0x1;
+            (void)ident;
+            p->tag.instruction[1] &= 0xffff;  // knock out upper 16 bits to hold pid
+            if (valid) {
+                struct cache_line process_data_struct;
+                //
+                // The 2 bits in "common" need not be identical,
+                // and that's observed empirically
+                //
+                // bits va[13:12] are lost.  They overlap the bottom 2 bits
+                // of the phys address
+                //
+                uint64_t pa = p->tag.instruction[0] << 12; // bits 43:12
+                pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
+                phys_to_pid(pa, &process_data_struct);
+#if 1
+                if (0 && process_data_struct.pid != 0) {
+                    printk(KERN_INFO
+                        "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
+                        way, va>>6,
+                        va, pa,
+                        process_data_struct.pid,
+                        process_data_struct.pid);
+                }
+#endif
+                p->tag.instruction[1] |= (process_data_struct.pid << 16);
+                p->pid = process_data_struct.pid;
+            }
+        }
+    }
+    return 0;
+}
+
+/*
 static int get_Cortex_L1_Insn(void) {
     uint32_t way;
     union Cortex_L1_I_Insn_Cache_Union *cache =
@@ -186,6 +234,7 @@ static int get_Cortex_L1_Insn(void) {
     }
     return 0;
 }
+*/
 
 
 #endif  // DO_GET
@@ -194,19 +243,22 @@ static int get_Cortex_L1_Insn(void) {
 
 void print_Cortex_L1_Insn(FILE *outfp,
       const struct Cortex_L1_I_Insn_Cache *cache) {
-    uint32_t way, set, bank, pair;
+    uint32_t way, set, pair;
     for (way = 0; way < 3; way++) {
         for (set = 0; set < 256; set++) {
-            fprintf(outfp, "%d,%d", way, set);
+            const struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
+            fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
+                way, set,
+                p->pid, p->pid,
+                p->tag.instruction[1],
+                p->tag.instruction[0]);
             const char *sep = ",";
-            for (bank = 0; bank < 4; bank++) {
-                for (pair = 0; pair < 2; pair++) {
-                    const struct Cortex_L1_I_Insn_Pair *p =
-                       &cache->way[way].set[set].bank[bank].pair[pair];
-                    fprintf(outfp, "%s0x%08x,0x%08x",
-                        sep, p->instruction[0], p->instruction[1]);
-                    sep = ",";
-                }
+            for (pair = 0; pair < 4*2; pair++) {
+                const struct Cortex_L1_I_Insn_Pair *p =
+                   &cache->way[way].set[set].pair[pair];
+                fprintf(outfp, "%s0x%08x,0x%08x",
+                    sep, p->instruction[0], p->instruction[1]);
+                sep = ",";
             }
             fprintf(outfp, "\n");
         }
