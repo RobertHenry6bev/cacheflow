@@ -86,13 +86,13 @@ png_all: $(ALL_PNG) Makefile
 .PHONY: plot_insn
 plot_insn: data/cachedump0000.png
 
-PNG_SCALE = 1
+PNG_SCALE = 2
 data/%.png: data/%.csv plot_insn.py Makefile
 	python3 plot_insn.py \
-          --hit_only \
           --scale $(PNG_SCALE) \
           --output $@ \
           $<
+#          --grey_scale \
 
 .PHONY: pylint
 pylint: /usr/bin/pylint3 *.py
