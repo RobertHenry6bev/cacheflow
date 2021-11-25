@@ -123,34 +123,24 @@ int main(int argc, const char **argv) {
   uint32_t *code_block = get_aligned_code(pagesize, npages);
   fill_aligned_code(code_block, ninsns);
   lock_aligned_code(code_block, pagesize, npages);
-
   __builtin___clear_cache(code_block, code_block+ninsns);  // builtin for gcc
 
-#if 0
-  asm("dsb sy");
-  asm("dmb sy");
-  asm("isb");
-  asm("isb");
-  asm("isb");
-#endif
-
   fooworker func = (fooworker)code_block;
-  if (0) {
+  if (1) {
     func(1);
     printf("DONE!\n");
-    return 0;
-  }
-
-  for (i = 0; i < NTHREAD; i++) {
-    thread_arg[i] = func;
-    pthread_create(
-      &worker_thread[i],
-      NULL,
-      foo_runner,
-      &thread_arg[i]);
-  }
-  for (i = 0; i < NTHREAD; i++) {
-    pthread_join(worker_thread[i], NULL);
+  } else {
+    for (i = 0; i < NTHREAD; i++) {
+      thread_arg[i] = func;
+      pthread_create(
+        &worker_thread[i],
+        NULL,
+        foo_runner,
+        &thread_arg[i]);
+    }
+    for (i = 0; i < NTHREAD; i++) {
+      pthread_join(worker_thread[i], NULL);
+    }
   }
   return 0;
 }

@@ -31,68 +31,69 @@
 #define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
-//
-//TODO(robhenry); These are probably specific to the Cortex A72(?) L2 Tag
-//
-#define NUM_CACHESETS 2048     // L2 Tag
-#define CACHESIZE 1024*1024*2     // L2 Tag
-#define NUM_CACHELINES 16     // L2 Tag (?)
-
-struct cache_line {
-	pid_t pid;
-	uint64_t addr;
-};
-
-struct cache_set {
-	struct cache_line cachelines[NUM_CACHELINES];
-};
-
-struct cache_sample {
-	struct cache_set sets[NUM_CACHESETS];
-};
-
-struct Cortex_L1_I_Tag_Pair {
-  uint32_t instruction[2];
+struct Cortex_L1_I_Tag {
+  pid_t pid;
+  uint32_t raw[2];
 };
 
 struct Cortex_L1_I_Insn_Pair {
   uint32_t instruction[2];
 };
+
 struct Cortex_L1_I_Insn_Bank {
-  pid_t pid;
-  struct Cortex_L1_I_Tag_Pair tag;
-  struct Cortex_L1_I_Insn_Pair pair[4*2];
+  struct Cortex_L1_I_Tag tag;
+  struct Cortex_L1_I_Insn_Pair pair[8];
 };
+
 struct Cortex_L1_I_Insn_Way {
   struct Cortex_L1_I_Insn_Bank set[256];
 };
+
 struct Cortex_L1_I_Insn_Cache {
   struct Cortex_L1_I_Insn_Way way[3];
 };
-union Cortex_L1_I_Insn_Cache_Union {
-  struct Cortex_L1_I_Insn_Cache struct_data;  // structured
-  uint32_t vec_data[3*256*4*2*2]; // vector data
+
+// -------------------
+//
+// This is fora 1Mbyte L2 cache,
+// as found on a Raspberry Pi 4 ARM Cortex-A72 by Broadcom BCM2711
+//
+#define Cortex_L2_NROW 1024
+#define Cortex_L2_NWAY   16
+
+struct Cortex_L2_Unif_Tag {
+  pid_t pid;
+  uint8_t moesi;  // 2 bits only
+  uint8_t id;     // non secure identifier for the physical address
+  uint64_t pa;
+  uint32_t raw[1];
 };
 
-struct Cortex_L1_I_Tag_Info {
-  // pid_t pid;  // pid placed into the high 28 bits of meta(?)
-  union overlay {
-    struct Cortex_L1_I_Tag_Pair tag_pair;
-    struct raw_tag_ram_output {
-       uint32_t physical_address;  // physical address tag bits 43:12
-       uint32_t meta;              // bit1: valid; bit0: non-secure ID
-    } d;
-  } u;
+struct Cortex_L2_Unif_Quad {
+  uint32_t instruction[4];
 };
-struct Cortex_L1_I_Tag_Way {
-  struct Cortex_L1_I_Tag_Info set[256]; // physical bank is bit 0
+
+struct Cortex_L2_Unif_Bank {
+  struct Cortex_L2_Unif_Tag tag;
+  struct Cortex_L2_Unif_Quad quad[4];
 };
-struct Cortex_L1_I_Tag_Cache {
-  struct Cortex_L1_I_Tag_Way way[3];
+
+struct Cortex_L2_Unif_Way {
+  struct Cortex_L2_Unif_Bank set[Cortex_L2_NROW];
 };
-union Cortex_L1_I_Tag_Cache_Union {
-  struct Cortex_L1_I_Tag_Cache struct_data;  // structured
-  uint32_t vec_data[3*256*2]; // vector data
+
+struct Cortex_L2_Unif_Cache {
+    struct Cortex_L2_Unif_Way way[Cortex_L2_NWAY];
+};
+
+union cache_sample {
+    struct Cortex_L1_I_Insn_Cache l1;
+    struct Cortex_L2_Unif_Cache l2;
+};
+
+struct phys_to_pid_type {
+    pid_t pid;
+    uint64_t addr;
 };
 
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H
