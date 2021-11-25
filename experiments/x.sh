@@ -5,12 +5,17 @@ pkill e11_flood.x || true
 make e11_flood.x snapshot.x
 rm -f data/* || true
 
-./e11_flood.x &
-printf "%4d 0x%04x\n" $! $!
+if true ; then
+  ./e11_flood.x &
+  printf "%4d 0x%04x\n" $! $!
 
-./e11_flood.x &
-printf "%4d 0x%04x\n" $! $!
+  ./e11_flood.x &
+  printf "%4d 0x%04x\n" $! $!
 
-sleep 1
+  # ./e11_flood.x &
+  # printf "%4d 0x%04x\n" $! $!
 
-make PERIOD=500 run
+  sleep 1
+fi
+
+make PERIOD=50 run
