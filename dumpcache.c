@@ -315,8 +315,8 @@ static const struct file_operations dumpcache_ops = {
 // register or read the data side L1 or L2 array contents into the
 // DL1DATAn register.
 //
-static inline void __attribute__((always_inline)) asm_ramindex_msr(const char *whence, u32 ramindex)
-{
+static inline void __attribute__((always_inline))
+asm_ramindex_msr(const char *whence, u32 ramindex) {
         (void)whence;
 	asm volatile(
 	    "sys #0, c15, c4, #0, %0\n"
@@ -336,8 +336,8 @@ static inline void __attribute__((always_inline)) asm_ramindex_msr(const char *w
 // The magic is in the S3_0_c15_c1_0 argument to the mrs instruction
 // mrs == Move to Register from a System register.
 //
-static inline void  __attribute__((always_inline)) asm_ramindex_data_mrs(u32 *dl1data, u8 sel)
-{
+static inline void __attribute__((always_inline))
+asm_ramindex_data_mrs(u32 *dl1data, u8 sel) {
 	if (sel & 0x01) {
 	  asm volatile("mrs %0, S3_0_c15_c1_0" : "=r"(dl1data[0]));
 	}
@@ -352,8 +352,8 @@ static inline void  __attribute__((always_inline)) asm_ramindex_data_mrs(u32 *dl
 	}
 }
 
-static inline void __attribute__((always_inline)) asm_ramindex_insn_mrs(u32 *ildata, u8 sel)
-{
+static inline void __attribute__((always_inline))
+asm_ramindex_insn_mrs(u32 *ildata, u8 sel) {
 	if (sel & 0x01) {
 	  asm volatile("mrs %0, S3_0_c15_c0_0" : "=r"(ildata[0]));
 	}

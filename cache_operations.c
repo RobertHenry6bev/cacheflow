@@ -36,9 +36,10 @@ static inline void get_L2_tag(u32 way, u32 index, u32 *dl1data) {
 	*dl1data |= (index << 5);
 }
 
-static inline void  __attribute__((always_inline)) get_L1Itag(u32 way, u32 va, uint32_t *raw_values) {
+static inline void  __attribute__((always_inline))
+get_L1Itag(u32 way, u32 va, uint32_t *raw_values) {
   u32 ramindex = 0
-    | (0x00 << 24)
+    | (0x00 << 24)  // magic RAM number
     | ((way & 0x3) << 18)
     | ((va << 6) & MASK2(13, 6))
     ;
@@ -48,8 +49,32 @@ static inline void  __attribute__((always_inline)) get_L1Itag(u32 way, u32 va, u
   asm_ramindex_insn_mrs(raw_values, 0x03);  // get raw_values[0] and raw_values[1]
 }
 
-static inline void  __attribute__((always_inline)) get_L1Iinsn(u32 way, u32 va, u32 *instructions)
-{
+static inline void  __attribute__((always_inline))
+get_L2Itag(u32 way, u32 set, struct Cortex_L2_Unif_Tag *p) {
+    u32 ramindex = 0
+    | (0x10 << 24)  // magic RAM number
+    | ((way & 0xf) << 18)
+    | ((set << 6) & MASK2(16, 6))
+    ;
+    asm_ramindex_msr("getL2_tag", ramindex);
+    asm_ramindex_data_mrs(p->raw, 0x01);  // reads just p->raw[0]
+    p->pid = -1;
+    p->moesi = p->raw[0] & 0x3;
+    p->pa = ((p->raw[0] & MASK2(30, 2)) >> 2) << 15; // pa tag, in position 43:15
+    p->id = (p->raw[0] >> 31) & 0x1;
+    switch (p->moesi) {
+    case 0:  // invalid
+       p->pa = 0;
+       break;
+    case 1:  // exclusive or modified
+    case 2:  // reserved
+    case 3:  // shared or owned
+      break;
+    }
+}
+
+static inline void  __attribute__((always_inline))
+get_L1Iinsn(u32 way, u32 va, u32 *instructions) {
   u32 ramindex = 0;
   assert((va & 0x7) == 0);
   ramindex = 0
@@ -63,8 +88,8 @@ static inline void  __attribute__((always_inline)) get_L1Iinsn(u32 way, u32 va, 
   asm_ramindex_insn_mrs(instructions, 0x03);
 }
 
-static inline void  __attribute__((always_inline)) get_L2UData(u32 way, u32 pa, uint32_t *data)
-{
+static inline void  __attribute__((always_inline))
+get_L2UData(u32 way, u32 pa, uint32_t *data) {
   u32 ramindex = 0;
   assert((pa & 0xf) == 0);
   ramindex = 0
@@ -120,7 +145,7 @@ static int fill_Cortex_L1_Insn(void) {
                 // and that's observed empirically
                 //
                 // bits va[13:12] are lost.  They overlap the bottom 2 bits
-                // of the phys address
+                // of the phys address.
                 //
                 uint64_t pa = p->tag.raw[0] << 12; // bits 43:12
                 pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
@@ -144,8 +169,9 @@ static int get_Cortex_L2_Unif(void) {
     uint32_t way;
     struct Cortex_L2_Unif_Cache *cache =
         (struct Cortex_L2_Unif_Cache *)cur_sample;
-    if (0) {
-      printk(KERN_INFO "sizeof Cortex_l2_Unif_Cache=%ld\n",
+    static int visit = 0;
+    if (visit++ == 0) {
+      printk(KERN_INFO "sizeof struct Cortex_L2_Unif_Cache=%ld\n",
           sizeof(struct Cortex_L2_Unif_Cache));
       printk(KERN_INFO "sizeof struct cache_sample=%ld\n",
           sizeof(struct cache_sample));
@@ -153,12 +179,9 @@ static int get_Cortex_L2_Unif(void) {
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         uint32_t set;
         for (set = 0; set < Cortex_L2_NROW; set++) {
-            uint32_t pa = (set << 6);
-            struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
             int quad;
-            (void)pa;
-            (void)p;
-            // get_L2Itag(way, pa, p->tag.raw); // gets 2 32-bit values for tag
+            struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
+            get_L2Itag(way, set, &p->tag);
             for (quad = 0; quad < 4; quad++) {
                 struct Cortex_L2_Unif_Quad *p =
                     &cache->way[way].set[set].quad[quad];
@@ -171,8 +194,29 @@ static int get_Cortex_L2_Unif(void) {
 }
 
 static int fill_Cortex_L2_Unif(void) {
-  // TODO(robhenry)
-  return -1;
+    uint32_t way;
+    struct Cortex_L2_Unif_Cache *cache =
+        (struct Cortex_L2_Unif_Cache *)cur_sample;
+    static int visit = 0;
+    if (visit++ == 0) {
+      printk(KERN_INFO "sizeof struct Cortex_L2_Unif_Cache=%ld\n",
+          sizeof(struct Cortex_L2_Unif_Cache));
+      printk(KERN_INFO "sizeof struct cache_sample=%ld\n",
+          sizeof(struct cache_sample));
+    }
+    for (way = 0; way < Cortex_L2_NWAY; way++) {
+        uint32_t set;
+        for (set = 0; set < Cortex_L2_NROW; set++) {
+            struct Cortex_L2_Unif_Tag *p = &cache->way[way].set[set].tag;
+            uint64_t pa = p->pa | ((set << 6) & MASK2(14,6));  // lopped off 2 upper bits
+            if (p->moesi != 0) {
+                struct cache_line process_data_struct;
+                phys_to_pid(pa, &process_data_struct);
+                p->pid = process_data_struct.pid;
+            }
+        }
+    }
+    return 0;
 }
 
 #endif  // DO_GET }
@@ -215,16 +259,28 @@ void print_Cortex_L2_Unif(FILE *outfp,
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         for (set = 0; set < Cortex_L2_NROW; set++) {
             const struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
-            (void)p;
-            fprintf(outfp, "%2d,%4d,  %d,0x%04x, 0x%08x,0x%08x ",
-                way, set%1024,  // DO NOT COMMIT
-                #if 1
-                0, 0, 0, 0
-                #else
+            //
+            // check that the post conditions expectewd the e11_flood.c are met:
+            // Check that pid determined by the kernel from the phys address
+            // is identical to the pid embedded in the instruction stream.
+            //
+            uint8_t valid = 1;
+            if (p->tag.pid > 0 && p->quad[0].instruction[1] == 0xffffffff) {
+               int q;
+               for (q = 0; q < 4; q++) {
+                 valid &= (p->quad[q].instruction[0] == 0x14000004);  // flooder semantics (br +3)
+                 valid &= (p->quad[q].instruction[1] == 0xffffffff);  // flooder semantics brand
+                 valid &= (p->quad[q].instruction[2] == p->tag.pid);  // flooder semantics pid
+               }
+            } else {
+               valid = 0;
+            }
+            fprintf(outfp, "%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x ",
+                valid ? 'T' : 'F',
+                way, set,
+                p->tag.moesi,
                 p->tag.pid, p->tag.pid,
-                p->tag.raw[1],
                 p->tag.raw[0]
-                #endif
                 );
             const char *sep = ",";
             for (quad = 0; quad < 4; quad++) {

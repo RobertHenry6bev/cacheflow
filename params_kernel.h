@@ -85,7 +85,10 @@ struct Cortex_L1_I_Insn_Cache {
 
 struct Cortex_L2_Unif_Tag {
   pid_t pid;
-  uint32_t raw[2];
+  uint8_t moesi;  // 2 bits only
+  uint8_t id;     // non secure identifier for the physical address
+  uint64_t pa;
+  uint32_t raw[1];
 };
 
 struct Cortex_L2_Unif_Quad {
