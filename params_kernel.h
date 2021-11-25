@@ -31,6 +31,9 @@
 #define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
+#define DUMPCACHE_DO_L1 1
+#define DUMPCACHE_DO_L2 2
+
 struct Cortex_L1_I_Tag {
   pid_t pid;
   uint32_t raw[2];
