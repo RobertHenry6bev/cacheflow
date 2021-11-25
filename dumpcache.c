@@ -72,8 +72,8 @@
 #define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
 
-#define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(struct cache_sample))
-#define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(struct cache_sample))
+#define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(union cache_sample))
+#define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(union cache_sample))
 
 /*
  * This variable is to keep track of the current buffer in use by the
@@ -85,13 +85,13 @@ static uint32_t cur_buf = 0;
 static unsigned long flags;
 
 /* Beginning of cache buffer in aperture 1 */
-static struct cache_sample * __buf_start1 = NULL;
+static union cache_sample * __buf_start1 = NULL;
 
 /* Beginning of cache buffer in aperture 2 */
-static struct cache_sample * __buf_start2 = NULL;
+static union cache_sample * __buf_start2 = NULL;
 
 /* Pointer to buffer currently in use. */
-static struct cache_sample * cur_sample = NULL;
+static union cache_sample * cur_sample = NULL;
 
 //static struct vm_area_struct *cache_set_buf_vma;
 static int dump_all_indices_done;
@@ -104,8 +104,6 @@ static void (*rmap_walk_func) (struct page *page, struct rmap_walk_control *rwc)
 
 /* Function prototypes */
 static int dumpcache_open (struct inode *inode, struct file *filp);
-static int dump_index(int index, struct cache_set* buf);
-static int dump_all_indices(void);
 
 static int get_Cortex_L1_Insn(void);
 static int fill_Cortex_L1_Insn(void);
@@ -137,11 +135,11 @@ static int c_show(struct seq_file *m, void *v)
 {
 
 	/* Make sure that the buffer has the right size */
-	m->size = sizeof(struct cache_sample) + 32;
-	m->buf = kvmalloc(sizeof(struct cache_sample) + 32, GFP_KERNEL);;
+	m->size = sizeof(union cache_sample) + 32;
+	m->buf = kvmalloc(sizeof(union cache_sample) + 32, GFP_KERNEL);;
 
 	/* Read buffer into sequential file interface */
-	if (seq_write(m, cur_sample, sizeof(struct cache_sample)) != 0) {
+	if (seq_write(m, cur_sample, sizeof(union cache_sample)) != 0) {
 		pr_info("Seq write returned non-zero value\n");
 	}
 
@@ -150,7 +148,7 @@ static int c_show(struct seq_file *m, void *v)
 
 /* This function returns a pointer to the ind-th sample in the
  * buffer. */
-static inline struct cache_sample * sample_from_index(uint32_t ind)
+static inline union cache_sample * sample_from_index(uint32_t ind)
 {
 	if (ind < CACHE_BUF_COUNT1) {
 		return &__buf_start1[ind];
@@ -187,8 +185,6 @@ static int acquire_snapshot(void)
         } else if (1) {
           get_Cortex_L2_Unif();
           fill_Cortex_L2_Unif();
-        } else {
-          dump_all_indices();
         }
 
 	preempt_enable();
@@ -412,7 +408,6 @@ int done_func(struct page *page)
 	return 1;
 }
 
-
 bool invalid_func(struct vm_area_struct *vma, void *arg)
 {
 	struct process_data
@@ -425,7 +420,7 @@ bool invalid_func(struct vm_area_struct *vma, void *arg)
 	return false;
 }
 
-void phys_to_pid(u64 physical_address, struct cache_line *process_data_struct) {
+void phys_to_pid(u64 physical_address, struct phys_to_pid_type *process_data_struct) {
     struct page *derived_page;
     struct rmap_walk_control rwc;
 
@@ -446,112 +441,6 @@ void phys_to_pid(u64 physical_address, struct cache_line *process_data_struct) {
 #define DO_GET
 #include "cache_operations.c"
 
-static int __dump_index_resolve(int index, struct cache_set* buf)
-{
-	int way;
-	for (way = 0; way < WAYS; way++) {
-            u32 physical_address;
-            get_L2_tag(way, index, &physical_address);
-            if (!physical_address) {
-                continue;
-            }
-
-            // This is probably very L2 specific
-            (buf->cachelines[way]).pid = 0;
-            (buf->cachelines[way]).addr = ((u64)physical_address << 1);
-
-            {
-              struct cache_line process_data_struct;
-              process_data_struct.pid = 0;
-              process_data_struct.addr = 0;
-              phys_to_pid((u64)physical_address << 1, &process_data_struct);
-
-              (buf->cachelines[way]).pid = process_data_struct.pid;
-              if (process_data_struct.addr != 0) {
-#if FULL_ADDRESS == 0
-                (buf->cachelines[way]).addr = process_data_struct.addr |
-                    0;
-#else
-                (buf->cachelines[way]).addr = process_data_struct.addr |
-                    (((u64)physical_address << 1) & 0xfff);
-#endif
-              }
-            }
-	}
-	return 0;
-}
-
-static int __dump_index_noresolve(int index, struct cache_set* buf)
-{
-	int way;
-	u32 physical_address;
-	// printk(KERN_INFO "__dump_index_noresolve %d %p\n", index, buf);
-
-	for (way = 0; way < WAYS; way++) {
-		get_L2_tag(way, index, &physical_address);
-		if (!physical_address) {
-			continue;
-                }
-
-		// Initalize struct
-		(buf->cachelines[way]).pid = 0; //process_data_struct->pid;// = 0;
-		(buf->cachelines[way]).addr = ((u64)physical_address); //process_data_struct->addr;// = 0;
-
-	}
-
-	return 0;
-}
-
-#define L1IDATA_WAYS 3
-static int __dump_L1Iinsn(int index, struct cache_set* buf)
-{
-  int way;
-  u32 instructions[2];
-  instructions[0] = 0;
-  instructions[1] = 0;
-  for (way = 0; way < L1IDATA_WAYS; way++) {
-      buf->cachelines[way].pid = 777777;
-      buf->cachelines[way].addr = 0x7777777777777777ULL;
-      get_L1Iinsn(way, index, instructions);
-      if (instructions[0] == 0) {  // TODO(robhenry):is 0 a legit insn?
-          continue;
-      }
-      buf->cachelines[way].pid = 666666;
-      buf->cachelines[way].addr =  // we're reusing the field name
-        (((u64)instructions[0]) << 32) |
-        (((u64)instructions[1]) <<  0) ;
-  }
-
-  return 0;
-}
-
-/* Invoke a smaller-footprint function in case address resolution has
- * not been requested */
-static int dump_index(int index, struct cache_set* buf)
-{
-        if (1) {
-          return __dump_L1Iinsn(index, buf);
-        } else {
-          // printk(KERN_INFO "dump_index %d %p\n", index, buf);
-          if (flags & DUMPCACHE_CMD_RESOLVE_EN_SHIFT) {
-                  return __dump_index_resolve(index, buf);
-          } else {
-                  return __dump_index_noresolve(index, buf);
-          }
-      }
-}
-
-static int dump_all_indices(void) {
-	int i = 0;
-	for (i = 0; i < CACHESETS_TO_WRITE; i++) {
-		if (dump_index(i, &cur_sample->sets[i]) == 1){
-			printk(KERN_INFO "Error dumping index: %d", i);
-			return 1;
-		}
-	}
-	return 0;
-}
-
 /* ProcFS interface definition */
 static int dumpcache_open(struct inode *inode, struct file *filp)
 {
@@ -569,11 +458,6 @@ static int dumpcache_open(struct inode *inode, struct file *filp)
 
 int init_module(void)
 {
-	printk(KERN_INFO "dumpcache module is loaded cache_line.size=%ld cache_set.size=%ld cache_sample.size=%ld\n",
-          sizeof(struct cache_line),
-          sizeof(struct cache_set),
-          sizeof(struct cache_sample)
-          );
 	printk(KERN_INFO "CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=%ld CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=%ld\n",
           CACHE_BUF_SIZE1,
           CACHE_BUF_SIZE2,
@@ -622,21 +506,21 @@ int init_module(void)
 
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
-          __buf_start1 = (struct cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
+          __buf_start1 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
           pr_info("__buf_start1 = 0x%p from 0x%016lx for %ld\n", __buf_start1, CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
         } else {
-          __buf_start1 = (struct cache_sample *) 0;
+          __buf_start1 = (union cache_sample *) 0;
         }
         if (CACHE_BUF_SIZE2 > 0) {
 #if 1
-          __buf_start2 = (struct cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
+          __buf_start2 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
 #else
-          __buf_start2 = (struct cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
+          __buf_start2 = (union cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
 #endif
 
           pr_info("__buf_start2 = 0x%p from 0x%016lx for %ld\n", __buf_start2, CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
         } else {
-          __buf_start2 = (struct cache_sample *) 0;
+          __buf_start2 = (union cache_sample *) 0;
         }
 
         pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);

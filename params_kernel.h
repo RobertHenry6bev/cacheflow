@@ -31,28 +31,6 @@
 #define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
-//
-//TODO(robhenry); These are probably specific to the Cortex A72(?) L2 Tag
-//
-#define NUM_CACHESETS 2048     // L2 Tag
-#define CACHESIZE 1024*1024*2     // L2 Unified Data
-#define NUM_CACHELINES 16     // L2 Tag  (number of ways)
-
-struct cache_line {
-	pid_t pid;
-	uint64_t addr;
-};
-
-struct cache_set {
-	struct cache_line cachelines[NUM_CACHELINES];
-};
-
-struct cache_sample {
-	struct cache_set sets[NUM_CACHESETS * 4];  // TODO(robhenry): *4 added to bring up to max size of parallel data structs
-};
-
-// ----------------------------------------- rob henry new, below
-
 struct Cortex_L1_I_Tag {
   pid_t pid;
   uint32_t raw[2];
@@ -105,7 +83,17 @@ struct Cortex_L2_Unif_Way {
 };
 
 struct Cortex_L2_Unif_Cache {
-  struct Cortex_L2_Unif_Way way[Cortex_L2_NWAY];
+    struct Cortex_L2_Unif_Way way[Cortex_L2_NWAY];
+};
+
+union cache_sample {
+    struct Cortex_L1_I_Insn_Cache l1;
+    struct Cortex_L2_Unif_Cache l2;
+};
+
+struct phys_to_pid_type {
+    pid_t pid;
+    uint64_t addr;
 };
 
 #endif  // __CACHEFLOW_PARAMS_KERNEL_H

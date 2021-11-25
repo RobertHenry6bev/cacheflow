@@ -139,7 +139,7 @@ static int fill_Cortex_L1_Insn(void) {
             int ident = (p->tag.raw[1] >> 0) & 0x1;
             (void)ident;
             if (valid) {
-                struct cache_line process_data_struct;
+                struct phys_to_pid_type process_data_struct;
                 //
                 // The 2 bits in "common" need not be identical,
                 // and that's observed empirically
@@ -169,13 +169,6 @@ static int get_Cortex_L2_Unif(void) {
     uint32_t way;
     struct Cortex_L2_Unif_Cache *cache =
         (struct Cortex_L2_Unif_Cache *)cur_sample;
-    static int visit = 0;
-    if (visit++ == 0) {
-      printk(KERN_INFO "sizeof struct Cortex_L2_Unif_Cache=%ld\n",
-          sizeof(struct Cortex_L2_Unif_Cache));
-      printk(KERN_INFO "sizeof struct cache_sample=%ld\n",
-          sizeof(struct cache_sample));
-    }
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         uint32_t set;
         for (set = 0; set < Cortex_L2_NROW; set++) {
@@ -197,20 +190,13 @@ static int fill_Cortex_L2_Unif(void) {
     uint32_t way;
     struct Cortex_L2_Unif_Cache *cache =
         (struct Cortex_L2_Unif_Cache *)cur_sample;
-    static int visit = 0;
-    if (visit++ == 0) {
-      printk(KERN_INFO "sizeof struct Cortex_L2_Unif_Cache=%ld\n",
-          sizeof(struct Cortex_L2_Unif_Cache));
-      printk(KERN_INFO "sizeof struct cache_sample=%ld\n",
-          sizeof(struct cache_sample));
-    }
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         uint32_t set;
         for (set = 0; set < Cortex_L2_NROW; set++) {
             struct Cortex_L2_Unif_Tag *p = &cache->way[way].set[set].tag;
             uint64_t pa = p->pa | ((set << 6) & MASK2(14,6));  // lopped off 2 upper bits
             if (p->moesi != 0) {
-                struct cache_line process_data_struct;
+                struct phys_to_pid_type process_data_struct;
                 phys_to_pid(pa, &process_data_struct);
                 p->pid = process_data_struct.pid;
             }

@@ -836,10 +836,7 @@ void wait_completion(void)
 /* Entry function to interface with the kernel module via the proc interface */
 void read_cache_to_file(char * filename, int index) {
 	int dumpcache_fd;
-	struct cache_sample * cache_contents;
-
-	int cache_set_idx, cache_line_idx;
-
+	union cache_sample * cache_contents;
 	cache_contents = NULL;
 
         FILE *outfp = fopen(filename, "w");
@@ -849,7 +846,7 @@ void read_cache_to_file(char * filename, int index) {
 	}
 
 	if (!cache_contents) {
-	    cache_contents = (struct cache_sample *)malloc(sizeof(struct cache_sample));
+	    cache_contents = (union cache_sample *)malloc(sizeof(union cache_sample));
 	}
 
 	dumpcache_fd = open_mod();
@@ -870,7 +867,7 @@ void read_cache_to_file(char * filename, int index) {
 
 	}
 
-	if (read(dumpcache_fd, cache_contents, sizeof(struct cache_sample)) < 0) {
+	if (read(dumpcache_fd, cache_contents, sizeof(union cache_sample)) < 0) {
 		perror("Failed to read from proc file");
 		exit(EXIT_FAILURE);
 	}
@@ -881,18 +878,7 @@ void read_cache_to_file(char * filename, int index) {
     } else if (1) {
       print_Cortex_L2_Unif(outfp,
           (const struct Cortex_L2_Unif_Cache *)cache_contents);
-    } else {
-	for (cache_set_idx = 0; cache_set_idx < NUM_CACHESETS; cache_set_idx++) {
-            for (cache_line_idx = 0; cache_line_idx < NUM_CACHELINES; cache_line_idx++) {
-                fprintf(outfp,
-                    "%05d,0x%016lx,%d,%d\n",
-                    cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].pid,
-                    cache_contents->sets[cache_set_idx].cachelines[cache_line_idx].addr,
-                    cache_set_idx, cache_line_idx);
-            }
-	}
-        }
-
-	fclose(outfp);
-	close(dumpcache_fd);
+    }
+    fclose(outfp);
+    close(dumpcache_fd);
 }
