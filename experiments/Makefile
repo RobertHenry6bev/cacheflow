@@ -61,9 +61,9 @@ DURATION_DEN=1
 #
 # From https://superuser.com/questions/249101/how-can-i-combine-30-000-images-into-a-timelapse-movie
 #
-.PHONY: movie_all
-movie_all: out.mp4
-out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
+.PHONY: movie
+movie: data/out.mp4
+data/out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 	-rm -f $@
 	/usr/bin/ffmpeg \
           -r 3/1 \
@@ -86,12 +86,12 @@ png_all: $(ALL_PNG) Makefile
 .PHONY: plot_insn
 plot_insn: data/cachedump0000.png
 
-PNG_SCALE = 2
+PNG_SCALE = 1
 data/%.png: data/%.csv plot_insn.py Makefile
 	python3 plot_insn.py \
+          --hit_only \
           --scale $(PNG_SCALE) \
           --output $@ \
-          --maxrows=384 \
           $<
 
 .PHONY: pylint

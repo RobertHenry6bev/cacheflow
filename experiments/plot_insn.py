@@ -1,16 +1,37 @@
-#!  /usr/bin/python3
+#! /usr/bin/python3
 
 """
 Write a png file which highlights where spoecific instructions are.
 """
 
-# pylint: disable=too-many-nested-blocks
+# pylint: disable=too-many-branches
 # pylint: disable=too-many-locals
+# pylint: disable=too-many-nested-blocks
 
 import argparse
 import csv
 
 import png  # sudo apt-get install python3-pip ; pip3 install pypng
+
+IS_L2 = True
+if IS_L2:
+    FIELD_NAMES = [] \
+      + ["check"] \
+      + ["way", "set"] \
+      + ["moesi"] \
+      + ["pid", "pid_x"] \
+      + ["t0"] \
+      + ["d_%02d" % (i,) for i in range(0, 16)]
+    NWAY = 16
+    NSET = 1024
+else:
+    FIELD_NAMES = [] \
+      + ["way", "set"] \
+      + ["pid", "pid_x"] \
+      + ["t1" + "t0"] \
+      + ["d_%02d" % (i,) for i in range(0, 16)]
+    NWAY =   3
+    NSET = 256
 
 class LineStats:
     """Statistics on a sequential run of instructions."""
@@ -75,11 +96,6 @@ def plot_insn_bitmap():
         default=0xffffffff,
         )
     parser.add_argument(
-        "--maxrows",
-        help="maximum number of rows",
-        type=int,
-        default=3*256,)
-    parser.add_argument(
         "--scale",
         help="png bits per logical pixel",
         type=int,
@@ -107,8 +123,8 @@ def plot_insn_bitmap():
 
     simple_line_stats = LineStats()
     wayset_line_stats = {}
-    for way in range(0, 3):
-        for seti in range(0, 256):
+    for way in range(0, NWAY):
+        for seti in range(0, NSET):
             wayset_line_stats[(way, seti)] = LineStats()
 
     given_png_file_name = args.output
@@ -128,19 +144,19 @@ def plot_insn_bitmap():
                         simple_line_stats, wayset_line_stats)
     if args.stats:
         simple_line_stats.dump()
-        for way in range(0, 3):
-            for seti in range(0, 256):
+        for way in range(0, NWAY):
+            for seti in range(0, NSET):
                 print("------------- %3d %3d" % (way, seti,))
                 wayset_line_stats[(way, seti)].dump()
 
 def consume_csv_file(input_fd, args, png_file,
       simple_line_stats, wayset_line_stats):
     """Read a csv file, possibliy writing a png_file, doing analysis."""
-    fieldnames = ["way", "set"] + ["pid", "pid_x"] + ["t1" + "t0"] + ["d_%02d" % (i,) for i in range(0, 16)]
-    reader = csv.DictReader(input_fd, fieldnames=fieldnames)
+
+    reader = csv.DictReader(input_fd, fieldnames=FIELD_NAMES)
     #
     # Read all rows, and store internally,
-    # so we can display the image with 3 ways going left to right.
+    # so we can display the image with NWAYS ways going left to right.
     #
     contents = {}
     for row in reader:
@@ -153,10 +169,10 @@ def consume_csv_file(input_fd, args, png_file,
     png_matrix = []
     do_bw_match = args.hit_only
     search_insn = args.insn
-    for seti in range(0, 256):
+    for seti in range(0, NSET):
         for _y in range(0, args.scale):
             png_row = []
-            for way in range(0, 3):
+            for way in range(0, NWAY):
                 # Draw a vertical blue bar at the left end
                 for _x in range(0, args.scale):
                     if do_bw_match:
@@ -197,8 +213,8 @@ def consume_csv_file(input_fd, args, png_file,
 
     if png_file:
         png_writer = png.Writer(
-            args.scale*3*16 + args.scale*3*2,  # 3 sets, 16 instructions/line
-            args.scale*256,
+            args.scale*NWAY*16 + args.scale*NWAY*2,  # NWAY sets, 16 instructions/line
+            args.scale*NSET,
             greyscale=do_bw_match)
         png_writer.write(png_file, png_matrix)
 
