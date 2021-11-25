@@ -13,4 +13,4 @@ if true ; then
   sleep 1
 fi
 
-make PERIOD=500 run
+make PERIOD=10 run

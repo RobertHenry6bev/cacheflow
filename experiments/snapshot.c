@@ -111,18 +111,19 @@ void set_non_realtime(void);
 void wait_completion(void);
 
 /* Entry function to interface with the kernel module via the proc interface */
-void read_cache_to_file(char * filename, int index);
+void read_cache_to_file(const char *filename, int index);
 
 /* Function to complete execution */
 void wrap_up(void);
 
+int observation = DUMPCACHE_DO_L1;
+
 int main (int argc, char ** argv)
 {
-	/* Parse command line */
 	int opt, res;
 	struct stat dir_stat;
 
-	while ((opt = getopt(argc, argv, "-rmafio:p:ntlh")) != -1) {
+	while ((opt = getopt(argc, argv, "-rmafio:p:ntlh12")) != -1) {
 		switch (opt) {
 		case 1:
 		{
@@ -130,24 +131,40 @@ int main (int argc, char ** argv)
 			bms[bm_count++] = argv[optind - 1];
 			break;
 		}
+
+		case '1':
+                {
+                   observation = DUMPCACHE_DO_L1;
+                   break;
+                }
+
+		case '2':
+                {
+                   observation = DUMPCACHE_DO_L2;
+                   break;
+                }
+
 		case 'r':
 		{
 			/* RT scheduler requested */
 			flag_rt = 1;
 			break;
 		}
+
 		case 'a':
 		{
 			/* Asynchronous requested */
 			flag_async = 1;
 			break;
 		}
+
 		case 'm':
 		{
 			/* Mimic only --- no cache dumps performed */
 			flag_mimic = 1;
 			break;
 		}
+
 		case 'i':
 		{
 			/* Isolate: make sure child processes are not
@@ -156,12 +173,14 @@ int main (int argc, char ** argv)
 			flag_isol = 1;
 			break;
 		}
+
 		case 'f':
 		{
 			/* Override content of outdir !!! CAREFUL */
 			flag_force = 1;
 			break;
 		}
+
 		case 'p':
 		{
 			/* Set custom sampling period in ms */
@@ -172,18 +191,21 @@ int main (int argc, char ** argv)
 
 			break;
 		}
+
 		case 'n':
 		{
 			/* Disable address resolution in the kernel  */
 			flag_resolve = 0;
 			break;
 		}
+
 		case 't':
 		{
 			/* Request transparent snapshotting */
 			flag_transparent = 1;
 			break;
 		}
+
 		case 'l':
 		{
 			/* Do not acquire applications layout files
@@ -191,6 +213,7 @@ int main (int argc, char ** argv)
 			flag_bm_layout = 0;
 			break;
 		}
+
 		case 'h':
 		{
 			/* Operate in overhead calculation mode. In
@@ -201,6 +224,7 @@ int main (int argc, char ** argv)
 			flag_overhead = 1;
 			break;
 		}
+
 		case 'o':
 		{
 			/* Custom output dir requested */
@@ -210,6 +234,7 @@ int main (int argc, char ** argv)
 			flag_out = 1;
 			break;
 		}
+
 		default:
 		{
 			/* '?' */
@@ -834,50 +859,49 @@ void wait_completion(void)
 #include "../cache_operations.c"
 
 /* Entry function to interface with the kernel module via the proc interface */
-void read_cache_to_file(char * filename, int index) {
-	int dumpcache_fd;
-	union cache_sample * cache_contents;
-	cache_contents = NULL;
+void read_cache_to_file(const char *filename, int index) {
+    int dumpcache_fd;
+    union cache_sample *cache_contents = NULL;
 
-        FILE *outfp = fopen(filename, "w");
-        if (outfp == NULL) {
-		perror("Failed to open outfile");
-		exit(EXIT_FAILURE);
-	}
+    FILE *outfp = fopen(filename, "w");
+    if (outfp == NULL) {
+        perror("Failed to open");
+        exit(EXIT_FAILURE);
+    }
 
-	if (!cache_contents) {
-	    cache_contents = (union cache_sample *)malloc(sizeof(union cache_sample));
-	}
+    if (!cache_contents) {
+        cache_contents = (union cache_sample *)malloc(sizeof(union cache_sample));
+    }
 
-	dumpcache_fd = open_mod();
+    dumpcache_fd = open_mod();
 
-	if (flag_transparent) {
-		/* Make sure to ask the kernel for the buffer at the
-		 * specific index. */
-		int retval;
-		unsigned long cmd = DUMPCACHE_CMD_SETBUF_SHIFT;
+    if (flag_transparent) {
+        /* Make sure to ask the kernel for the buffer at the
+         * specific index. */
+        int retval;
+        unsigned long cmd = DUMPCACHE_CMD_SETBUF_SHIFT;
 
-		cmd |= DUMPCACHE_CMD_VALUE(index);
+        cmd |= DUMPCACHE_CMD_VALUE(index);
 
-		retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
-		if (retval < 0) {
-			perror("Unable to retrieve current buffer index from shutter");
-			exit(EXIT_FAILURE);
-		}
+        retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
+        if (retval < 0) {
+            perror("Unable to retrieve current buffer index from shutter");
+            exit(EXIT_FAILURE);
+        }
 
-	}
+    }
 
-	if (read(dumpcache_fd, cache_contents, sizeof(union cache_sample)) < 0) {
-		perror("Failed to read from proc file");
-		exit(EXIT_FAILURE);
-	}
+    if (read(dumpcache_fd, cache_contents, sizeof(union cache_sample)) < 0) {
+          perror("Failed to read from proc file");
+          exit(EXIT_FAILURE);
+    }
 
-    if (0) {
-      print_Cortex_L1_Insn(outfp,
-          (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
-    } else if (1) {
-      print_Cortex_L2_Unif(outfp,
-          (const struct Cortex_L2_Unif_Cache *)cache_contents);
+    if (observation == DUMPCACHE_DO_L1) {
+        print_Cortex_L1_Insn(outfp,
+            (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
+    } else if (observation == DUMPCACHE_DO_L2) {
+        print_Cortex_L2_Unif(outfp,
+            (const struct Cortex_L2_Unif_Cache *)cache_contents);
     }
     fclose(outfp);
     close(dumpcache_fd);
