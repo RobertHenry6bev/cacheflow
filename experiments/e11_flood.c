@@ -51,17 +51,19 @@ uint32_t *fill_aligned_code(uint32_t *code, size_t ninsns) {
   //
   // for a loop iteration of 6M times:
   // 6000000 == 6 * 1000 * 1000 == (0x5b<<16) + 0x8d80
+  // We'll start with code that was compiled for 6000000,
+  // and swap in the bits for "count".
   //
   {
-    code[i++] = 0x5291b001;  // movw w1, #0x8d80
-    //
-    // insn[20:5] is the value to movk
-    //
+    uint32_t count = 6 * 1000 * 1000;
+    uint32_t upper = (count >> 16) & 0xffff;
+    uint32_t lower = (count >>  0) & 0xffff;
+    uint32_t movw = 0x5291b001;  // movw w1, #0x8d80
     uint32_t movk = 0x72a00b61;  // movk w1, #0x5b, lsl #16 (base)
     uint32_t mask = ((1 << (20-5+1)) - 1) << 5;
-    uint32_t upper = 0x08;  // originally 0x5b to get 6M
-    (void)upper; (void)mask;
+    movw = (movw & ~mask) | ((lower << 5) & mask);
     movk = (movk & ~mask) | ((upper << 5) & mask);
+    code[i++] = movw;
     code[i++] = movk;
   }
 

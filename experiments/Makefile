@@ -34,7 +34,6 @@ data:
 	mkdir -p $@
 
 CFLAGS = -O2 -g -Wall
-CFLAGS = -O0 -g -Wall
 
 snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 	gcc $(CFLAGS) -o $@ $< -lrt

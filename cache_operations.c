@@ -28,27 +28,7 @@ get_L1Itag(u32 way, u32 va, uint32_t *raw_values) {
   // raw_values[0] = 0;
   // raw_values[1] = 0;
   asm_ramindex_msr("get_L1Itag", ramindex);
-  asm_ramindex_insn_mrs(raw_values, 0x03);  // get raw_values[0] and raw_values[1]
-}
-
-// original
-static inline void  __attribute__((always_inline))
-get_L2_tag(u32 way, u32 index, u32 *dl1data) {
-	u32 ramid    = 0x10;  // L2 Tag RAM magic number (page 4-184)
-	u32 ramindex = (ramid << 24) + (way << 18) + (index << 6);
-
-	asm_ramindex_msr("getL2_tag", ramindex);
-	asm_ramindex_data_mrs(dl1data, 0x01);  // reads just dl1data[0]
-
-	// Check if MOESI state is invalid, and if so, zero out the address
-	if (((*dl1data) & 0x03UL) == 0) {
-          *dl1data = 0;
-          return;
-	}
-	// Isolate the tag
-	*dl1data &= ~(0x03UL);
-	*dl1data <<= 12;   // robhenry: this looks like an off by 1 error
-	*dl1data |= (index << 5);
+  asm_ramindex_insn_mrs(raw_values, 0x03);  // get raw_values[0], raw_values[1]
 }
 
 static inline void  __attribute__((always_inline))
@@ -196,22 +176,23 @@ static int fill_Cortex_L2_Unif(void) {
         uint32_t set;
         for (set = 0; set < Cortex_L2_NROW; set++) {
             struct Cortex_L2_Unif_Tag *p = &cache->way[way].set[set].tag;
-            uint64_t pa;
             if (p->pa_tag & MASK2(14, 0)) {
                 printk(KERN_INFO "invalid p->pa_tag 0x%016llx\n", p->pa_tag);
             }
             //
             // half from 512..1023 'F'
-            // pa = (p->pa_tag                ) | ((set << 6) & MASK2(14, 6));
+            // p->pa = (p->pa_tag                ) | ((set<<6) & MASK2(14, 6));
+            //
             // random half 'F'
-            // pa = (p->pa_tag & ~MASK2(16, 0)) | ((set << 6) & MASK2(16, 6));
+            // p->pa = (p->pa_tag & ~MASK2(16, 0)) | ((set<<6) & MASK2(16, 6));
+            //
             // empirically seems to be the best split.
             //
-            pa = (p->pa_tag & ~MASK2(15, 0)) | ((set << 6) & MASK2(15, 6));
+            p->pa = (p->pa_tag & ~MASK2(15, 0)) | ((set<<6) & MASK2(15, 6));
 
             if (p->moesi != 0) {
                 struct phys_to_pid_type process_data_struct;
-                phys_to_pid(pa, &process_data_struct);
+                phys_to_pid(p->pa, &process_data_struct);
                 p->pid = process_data_struct.pid;
             }
         }
@@ -272,13 +253,14 @@ void print_Cortex_L2_Unif(FILE *outfp,
               fail_brand += (p->quad[q].instruction[1] != 0xffffffff);
               fail_pid +=   (p->quad[q].instruction[2] != p->tag.pid);
             }
-            fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x ",
+            fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x,0x%016lx ",
                 fail_brand ? 'B' : '-',
                 fail_pid   ? 'P' : '-',
                 way, set,
                 p->tag.moesi,
                 p->tag.pid, p->tag.pid,
-                p->tag.raw[0]
+                p->tag.raw[0],
+                p->tag.pa
                 );
             const char *sep = ",";
             for (quad = 0; quad < 4; quad++) {
