@@ -89,6 +89,7 @@ PNG_SCALE = 2
 data/%.png: data/%.csv plot_insn.py Makefile
 	python3 plot_insn.py \
           --scale $(PNG_SCALE) \
+          --show_pid \
           --output $@ \
           $<
 #          --grey_scale \

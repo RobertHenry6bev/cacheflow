@@ -4,6 +4,7 @@
 Write a png file which highlights where spoecific instructions are.
 """
 
+# pylint: disable=too-many-arguments
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-nested-blocks
@@ -22,7 +23,8 @@ if IS_L2:
       + ["way", "set"] \
       + ["moesi"] \
       + ["pid", "pid_x"] \
-      + ["t0"] \
+      + ["rawtag"] \
+      + ["pa"] \
       + ["d_%02d" % (i,) for i in range(0, 16)]
     NWAY = 16
     NSET = 1024
@@ -103,7 +105,7 @@ def plot_insn_bitmap():
         default=4,)
     parser.add_argument(
         "--show_pid",
-        help="color by pid, unique per png",
+        help="color by pid",
         action='store_true',
         default=False,)
     parser.add_argument(
@@ -118,14 +120,17 @@ def plot_insn_bitmap():
         default=False,)
     parser.add_argument(
         "--output",
-        help="name of output file",
+        help="name of output file (overrides inference from given filename)",
         type=str,
-        default="junk.png",)
+        default=None,)
     parser.add_argument(
         "rest",
         nargs=argparse.REMAINDER,)
 
     args = parser.parse_args()
+
+    pid_color = {}
+    pid_count = {}
 
     simple_line_stats = LineStats()
     wayset_line_stats = {}
@@ -143,10 +148,13 @@ def plot_insn_bitmap():
                 png_file_name = input_file_name.replace(".csv", ".png")
             if not png_file_name:
                 consume_csv_file(input_fd, args, None,
+                    pid_color, pid_count,
                     simple_line_stats, wayset_line_stats)
             else:
                 with open(png_file_name, "wb") as png_file:
+                    print("Writing %s" % (png_file_name,))
                     consume_csv_file(input_fd, args, png_file,
+                        pid_color, pid_count,
                         simple_line_stats, wayset_line_stats)
     if args.stats:
         simple_line_stats.dump()
@@ -156,6 +164,7 @@ def plot_insn_bitmap():
                 wayset_line_stats[(way, seti)].dump()
 
 def consume_csv_file(input_fd, args, png_file,
+      pid_color, pid_count,
       simple_line_stats, wayset_line_stats):
     """Read a csv file, possibliy writing a png_file, doing analysis."""
 
@@ -178,11 +187,9 @@ def consume_csv_file(input_fd, args, png_file,
     do_show_pid = args.show_pid
     do_grey_scale = args.grey_scale
     search_insn = args.insn
+    #
     do_blue = False
     do_green = False
-    #
-    pid_colors = {}
-    pid_count = {}
     #
     png_matrix = []
     xwidth = 0
@@ -203,18 +210,18 @@ def consume_csv_file(input_fd, args, png_file,
                             png_row.append(0x00)
                             png_row.append(0xff)
                         xwidth += 1
-
+                #
                 wayset = (way, seti)
                 insns = contents[wayset]
                 pid = pids[wayset]
                 if pid not in pid_count:
                     pid_count[pid] = 0
                 pid_count[pid] += 1
-                if pid not in pid_colors:
+                if pid not in pid_color:
                     if pid in [0, -1]:
-                        pid_colors[pid] = [0, 0, 0]
+                        pid_color[pid] = [0, 0, 0]
                     else:
-                        pid_colors[pid] = [
+                        pid_color[pid] = [
                             random.randint(0, 255),
                             random.randint(0, 255),
                             random.randint(0, 255),
@@ -240,9 +247,9 @@ def consume_csv_file(input_fd, args, png_file,
                                 xwidth += 1
                             else:
                                 if do_show_pid:
-                                    png_row.append(pid_colors[pid][0])
-                                    png_row.append(pid_colors[pid][1])
-                                    png_row.append(pid_colors[pid][2])
+                                    png_row.append(pid_color[pid][0])
+                                    png_row.append(pid_color[pid][1])
+                                    png_row.append(pid_color[pid][2])
                                 else:
                                     png_row.append((insn>>(0*8)) & 0xFF)  # gibberish
                                     png_row.append((insn>>(1*8)) & 0xFF)  # gibberish
@@ -261,11 +268,9 @@ def consume_csv_file(input_fd, args, png_file,
                             png_row.append(0x00)
                         xwidth += 1
             png_matrix.append(png_row)
-            # print("xwidth=%d png_row=%d" % (xwidth, len(png_row),))
-            # assert xwidth == len(png_row)/3
 
     for pid, count in sorted(pid_count.items(), reverse=True, key=lambda x:x[1]):
-        print("pid %6d count %5d color=%s" % (pid, count, pid_colors[pid]))
+        print("pid %6d count %8d color=%s" % (pid, count, pid_color[pid]))
     if png_file:
         # print("xwidth=%d XXX do_grey_scale %s" % (xwidth, do_grey_scale,))
         png_writer = png.Writer(
