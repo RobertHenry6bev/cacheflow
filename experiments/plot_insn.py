@@ -94,7 +94,6 @@ def plot_insn_bitmap():
         "--insn",
         help="instruction to find",
         type=int,
-        #default=0x521f0000,
         default=0xffffffff,
         )
     parser.add_argument(
