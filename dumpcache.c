@@ -420,7 +420,7 @@ bool invalid_func(struct vm_area_struct *vma, void *arg)
 	return false;
 }
 
-void phys_to_pid(u64 physical_address, struct phys_to_pid_type *process_data_struct) {
+void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
     struct page *derived_page;
     struct rmap_walk_control rwc;
 
@@ -432,7 +432,7 @@ void phys_to_pid(u64 physical_address, struct phys_to_pid_type *process_data_str
     rwc.done = NULL; //done_func;
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
-    derived_page = phys_to_page(physical_address);
+    derived_page = phys_to_page(pa);
     if (rmap_walk_func) {
       rmap_walk_func(derived_page, &rwc);
     }
