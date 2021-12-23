@@ -24,9 +24,5 @@ disassemble: cache_jig.c experiments/data/cachedump0000.csv
 	gcc -g -c cache_jig.c
 	echo x/4096i vals | gdb cache_jig.o
 
-.PHONY: test
-test: test_access.x
-	./test_access.x
-test_access.x: params_kernel.h cache_operations.c test_access.c
 %.x: %.c
 	gcc -Wall -O0 -g -o $@ $<
