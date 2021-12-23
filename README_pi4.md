@@ -61,26 +61,26 @@ Plug in keyboard, monitor, ethernet and power.
 Power on.  You're up and running.
 
 login as `ubuntu` passwd `ubuntu`.  Immediately change the password.
+(robhenry's board used robhenry's normal msft passwd.)
 
 Wait for unattended upgrade to finish in the background;
 this might take as much as 30 minutes.
-When top shows no more dpkg like programs burning cycles, then try
-to...
+When top shows no more dpkg like programs burning cycles, then try to do this:
 
 Install the first round of packages:
 ``` bash
 sudo apt-get install --yes ifconfig build-essential gdb locate
 ```
+
 Set up your ssh environment, for a suitable host name `HOME_MACHINE`:
 ``` bash
 scp -r -p $HOME_MACHINE:.ssh x
 rm -rf .ssh
 mv x .ssh
-
 eval `ssh-agent`; ssh-add ~/.ssh/id_rsa
 ```
 
-Set up your git environment, someething like:
+Set up your git environment, something like:
 ```bash
 git config --global user.name "YOUR NAME HERE"
 git config --global user.email "YOUR EMAIL HERE"
@@ -89,7 +89,6 @@ git config --global core.editor $(which vim)
 git config --global core.excludesfile ~/.gitignore_global
 git config --global  merge.renamelimit 2000
 git config pull.rebase false # merge (the default strategy)
-
 ```
 
 Figure out the board's ip address so you can ssh into it from
@@ -101,8 +100,16 @@ ipconfig
 # Edit boot configuration files
 You'll need to carve out some amount of memory at the top end
 of the physical address space.
-For a 4GByte Raspberry pi4,
-running ubuntu 21.10,
+
+## For a 4GByte Raspberry pi4, running ubuntu 18.04,
+change `/boot/firmware/usercfg.txt`
+```
+sudo vi /boot/firmware/usercfg.txt
+# append the line
+total_mem=3968M
+```
+
+## For a 4GByte Raspberry pi4, running ubuntu 21.10,
 change `/boot/firmware/cmdline.txt`
 ```
 sudo vi /boot/firmware/cmdline.txt
@@ -111,7 +118,7 @@ write file
 sudo cat /proc/iomem > $HOME/iomem.old.out
 sudo reboot
 ```
-Once the machine comes back up, do:O
+Once the machine comes back up, do:
 ```bash
 sudo cat /proc/iomem > $HOME/iomem.new.out
 diff $HOME/iomem.old.out $HOME/iomem.new.out
