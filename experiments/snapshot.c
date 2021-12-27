@@ -230,7 +230,7 @@ int main (int argc, char ** argv)
 			/* Custom output dir requested */
 			int path_len = strlen(optarg);
 			outdir = (char *)malloc(path_len+1);
-			strncpy(outdir, optarg, path_len);
+			strncpy(outdir, optarg, path_len+1);
 			flag_out = 1;
 			break;
 		}
