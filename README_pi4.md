@@ -29,12 +29,18 @@ and download:
 wget https://cdimage.ubuntu.com/releases/18.04/release/ubuntu-18.04.5-preinstalled-server-arm64+raspi4.img.xz
 ```
 
+For ubuntu 20.04.3
+```bash
+wget https://cdimage.ubuntu.com/releases/20.04/release/ubuntu-20.04.3-preinstalled-server-arm64+raspi.img.xz
+
+```
+
 For ubuntu 21.10,
 visit [here](https://ubuntu.com/download/raspberry-pi)
 and download the server image (you can use the top if you want,
 but there's more bloat)
 ```bash
-wget https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-server-arm64+raspi.img.xz?_ga=2.27306364.1121619683.1637011980-2125342577.1636579052
+wget https://cdimage.ubuntu.com/releases/21.10/release/ubuntu-21.10-preinstalled-server-arm64+raspi.img.xz
 ```
 
 Running on your Ubuntu devel machine,
@@ -69,7 +75,7 @@ When top shows no more dpkg like programs burning cycles, then try to do this:
 
 Install the first round of packages:
 ``` bash
-sudo apt-get install --yes ifconfig build-essential gdb locate
+sudo apt-get install --yes net-tools build-essential gdb locate
 ```
 
 Set up your ssh environment, for a suitable host name `HOME_MACHINE`:
@@ -107,6 +113,18 @@ change `/boot/firmware/usercfg.txt`
 sudo vi /boot/firmware/usercfg.txt
 # append the line
 total_mem=3968M
+# write file
+```
+
+## For a 4GByte Raspberry pi4, running ubuntu 20.04
+TODO(robhenry)
+change `/boot/firmware/usercfg.txt`
+```
+TODO(robhenry)
+sudo vi /boot/firmware/usercfg.txt
+# append the line
+total_mem=3968M
+# write file
 ```
 
 ## For a 4GByte Raspberry pi4, running ubuntu 21.10,
@@ -114,7 +132,12 @@ change `/boot/firmware/cmdline.txt`
 ```
 sudo vi /boot/firmware/cmdline.txt
 append  mem=3968M to the end of the single line therein
-write file
+# write file
+```
+
+Then capture iomem layout and reboot
+to make the reent changes stick:
+```
 sudo cat /proc/iomem > $HOME/iomem.old.out
 sudo reboot
 ```

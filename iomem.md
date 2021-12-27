@@ -1,6 +1,7 @@
 
-Contents of Raspberry pi4 4Gb /proc/iomem with all memory 
-configured in (eg, without changes to /boot/firmware/usercfg.txt
+Contents of Raspberry pi4 4Gb `/proc/iomem` with all memory 
+configured in (eg, without changes to `/boot/firmware/usercfg.txt`)
+From Ubuntu 18.04, perhaps? TODO
 ```
 00000000-3b3fffff : System RAM
   00000000-00000fff : reserved
