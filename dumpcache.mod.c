@@ -28,6 +28,11 @@ __used __section(__versions) = {
 	{ 0x9bba1218, "seq_release" },
 	{ 0x4ebdbc33, "seq_read" },
 	{ 0x1d755966, "seq_lseek" },
+	{ 0x3d8560e4, "cpu_hwcaps" },
+	{ 0xb2ead97c, "kimage_vaddr" },
+	{ 0x4b50cb71, "cpu_hwcap_keys" },
+	{ 0x14b89635, "arm64_const_caps_ready" },
+	{ 0x599fb41c, "kvmalloc_node" },
 	{ 0xc38127c9, "remove_proc_entry" },
 	{ 0xedc03953, "iounmap" },
 	{ 0xf1d4aad3, "proc_create" },
@@ -43,20 +48,14 @@ __used __section(__versions) = {
 	{ 0x8e116a88, "on_each_cpu_mask" },
 	{ 0x921b07b1, "__cpu_online_mask" },
 	{ 0x7a2af7b4, "cpu_number" },
-	{ 0x8f678b07, "__stack_chk_guard" },
 	{ 0xc5850110, "printk" },
 	{ 0x3980227b, "seq_write" },
 	{ 0x301fa007, "_raw_spin_unlock" },
 	{ 0xdbf17652, "_raw_spin_lock" },
 	{ 0x1fdc7df2, "_mcount" },
-	{ 0x599fb41c, "kvmalloc_node" },
-	{ 0x3d8560e4, "cpu_hwcaps" },
-	{ 0xb2ead97c, "kimage_vaddr" },
-	{ 0x4b50cb71, "cpu_hwcap_keys" },
-	{ 0x14b89635, "arm64_const_caps_ready" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "0223E844E84EAE48FA56016");
+MODULE_INFO(srcversion, "9FB233469F6DD2B6494CBF8");
