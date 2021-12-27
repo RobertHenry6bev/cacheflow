@@ -5,7 +5,7 @@
 #
 
 set -ux
-dstdir=new.18.04
+dstdir=baseline.20.04
 mkdir -p $dstdir
 sudo cp /proc/iomem $dstdir
      cp /boot/firmware/btcmd.txt $dstdir
