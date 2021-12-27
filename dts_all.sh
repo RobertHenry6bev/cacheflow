@@ -3,7 +3,7 @@
 set -eux
 
 #
-# decompile binary dt b files into dts files for guessing memory map overlays
+# decompile binary dtb files into dts files for guessing memory map overlays
 #
 
 mkdir -p dts
