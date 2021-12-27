@@ -34,11 +34,6 @@
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
-// Might need this
-//pragma GCC pop_options
-
-/* Global variables */
-
 /*
  * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
  * large hole in the middle. Here is what the address space looks like
@@ -59,9 +54,11 @@
 
 //
 // This is an inelegant way to make kernel args include mem=3968M (per Renato)
+//
 // kernel 5.4 ubuntu 18.04: Edit files:
 //    /boot/firmware/btcmd.txt
 //    /boot/firmware/nobtcmd.txt
+//
 // kernel 5.13.0 ubuntu 21.10: Edit files:
 //    /boot/firmware/cmdline.txt
 //
@@ -498,32 +495,43 @@ int init_module(void)
 		}
 #endif
 	}
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
+  //
+  // through ubuntu 20.04
+  //
   #define dumpcache_ioremap ioremap_nocache
 #else
-  #define dumpcache_ioremap ioremap_cache // despite the name, it apparently does no caching
+  //
+  // despite the name, it apparently does no caching
+  //
+  #define dumpcache_ioremap ioremap_cache // doesn' really cache?! WTF?
 #endif
 
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
-          __buf_start1 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
-          pr_info("__buf_start1 = 0x%p from 0x%016lx for %ld\n", __buf_start1, CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
+          __buf_start1 = (union cache_sample *) dumpcache_ioremap(
+              CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
+          pr_info("__buf_start1=0x%p from 0x%016lx for %ld\n",
+              __buf_start1, CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
         } else {
           __buf_start1 = (union cache_sample *) 0;
         }
         if (CACHE_BUF_SIZE2 > 0) {
+
 #if 1
           __buf_start2 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
 #else
           __buf_start2 = (union cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
 #endif
 
-          pr_info("__buf_start2 = 0x%p from 0x%016lx for %ld\n", __buf_start2, CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
+          pr_info("__buf_start2=0x%p from 0x%016lx for %ld\n",
+              __buf_start2, CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
         } else {
           __buf_start2 = (union cache_sample *) 0;
         }
 
-        pr_info("buf_start1=%p buf_start2=%p\n", __buf_start1, __buf_start2);
+        pr_info("__buf_start1=%p __buf_start2=%p\n", __buf_start1, __buf_start2);
 	/* Check that we are all good! */
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
 		pr_err("Unable to dumpcache_ioremap buffer space.\n");
