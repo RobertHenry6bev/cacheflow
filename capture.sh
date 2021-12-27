@@ -8,6 +8,8 @@ set -ux
 dstdir=baseline.20.04
 dstdir=new.20.04
 dstdir=works.20.04
+
+dstdir=baseline.21.04
 mkdir -p $dstdir
 sudo cp /proc/iomem $dstdir
      cp /boot/firmware/btcmd.txt $dstdir
