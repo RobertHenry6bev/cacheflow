@@ -7,16 +7,16 @@
   2d19b000-2d1a7fff : reserved
   2d1a8000-2effffff : reserved
   37400000-3b3fffff : reserved
-40000000-fbffffff : System RAM
-  f7000000-faffffff : reserved
-  fb116000-fb175fff : reserved
-  fb176000-fb776fff : reserved
-  fb777000-fb7fafff : reserved
-  fb7fd000-fb7fefff : reserved
-  fb7ff000-fb7fffff : reserved
-  fb800000-fb802fff : reserved
-  fb803000-fb803fff : reserved
-  fb804000-fbffffff : reserved
+40000000-f7ffffff : System RAM
+  f3000000-f6ffffff : reserved
+  f7136000-f7195fff : reserved
+  f7196000-f7796fff : reserved
+  f7797000-f781afff : reserved
+  f781d000-f781efff : reserved
+  f781f000-f781ffff : reserved
+  f7820000-f7822fff : reserved
+  f7823000-f7823fff : reserved
+  f7824000-f7ffffff : reserved
 fd500000-fd50930f : fd500000.pcie pcie@7d500000
 fd580000-fd58ffff : fd580000.ethernet ethernet@7d580000
   fd580e14-fd580e1c : unimac-mdio.-19
