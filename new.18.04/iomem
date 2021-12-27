@@ -1,26 +1,22 @@
-
-Contents of Raspberry pi4 4Gb `/proc/iomem` with all memory 
-configured in (eg, without changes to `/boot/firmware/usercfg.txt`)
-From Ubuntu 18.04, perhaps? TODO
-```
 00000000-3b3fffff : System RAM
   00000000-00000fff : reserved
   00080000-013fffff : Kernel code
   01400000-017fffff : reserved
   01800000-01a4ffff : Kernel data
-  02600000-0260cfff : reserved
-  02700000-03c2bfff : reserved
+  02600000-0260dfff : reserved
+  02700000-03c2cfff : reserved
   2c000000-2fffffff : reserved
   37400000-3b3fffff : reserved
-40000000-fbffffff : System RAM
-  f7000000-f77fffff : reserved
-  f7806000-f7807fff : reserved
-  f7920000-fb7fffff : reserved
-  fb805000-fb805fff : reserved
-  fb808000-fb808fff : reserved
-  fb809000-fb80bfff : reserved
-  fb80c000-fb80cfff : reserved
-  fb80d000-fbffffff : reserved
+40000000-f7ffffff : System RAM
+  f3000000-f37fffff : reserved
+  f3826000-f3827fff : reserved
+  f3940000-f77fffff : reserved
+  f7805000-f7824fff : reserved
+  f7825000-f7825fff : reserved
+  f7828000-f7828fff : reserved
+  f7829000-f782bfff : reserved
+  f782c000-f782cfff : reserved
+  f782d000-f7ffffff : reserved
 fd500000-fd50930f : fd500000.pcie pcie@7d500000
 fd580000-fd58ffff : fd580000.ethernet ethernet@7d580000
   fd580e14-fd580e1c : unimac-mdio.-19
@@ -46,4 +42,3 @@ fec11000-fec1101f : fe100000.watchdog watchdog@7e100000
   600000000-6000fffff : PCI Bus 0000:01
     600000000-600000fff : 0000:01:00.0
       600000000-600000fff : xhci-hcd
-```
