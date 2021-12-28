@@ -44,7 +44,6 @@ __used __section("__versions") = {
 	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0x43b0c9c3, "preempt_schedule" },
 	{ 0x25a65511, "on_each_cpu_mask" },
-	{ 0x17de3d5, "nr_cpu_ids" },
 	{ 0x5e3240a0, "__cpu_online_mask" },
 	{ 0x7a2af7b4, "cpu_number" },
 	{ 0xc5850110, "printk" },
@@ -56,4 +55,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "15B68B56035F0EEA4C14C96");
+MODULE_INFO(srcversion, "37476733CC3D570302D88A8");

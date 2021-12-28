@@ -34,6 +34,8 @@
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
+#define TRACE_IOCTL if (0)
+
 /*
  * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
  * large hole in the middle. Here is what the address space looks like
@@ -100,7 +102,7 @@ static bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigne
 static void (*rmap_walk_func) (struct page *page, struct rmap_walk_control *rwc) = NULL;
 
 /* Function prototypes */
-static int dumpcache_open (struct inode *inode, struct file *filp);
+static int dumpcache_open (struct inode *inode, struct file *filep);
 
 static int get_Cortex_L1_Insn(void);
 static int fill_Cortex_L1_Insn(void);
@@ -163,11 +165,11 @@ static int acquire_snapshot(void)
 
 	/* Prepare cpu mask with all CPUs except current one */
 	processor_id = get_cpu();
-        printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
+        TRACE_IOCTL printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
 
 	cpumask_copy(&cpu_mask, cpu_online_mask);
 	cpumask_clear_cpu(processor_id, &cpu_mask);
-        printk(KERN_INFO "acquire_snapshot cpu_mask=%*pbl\n", cpumask_pr_args(&cpu_mask));
+        TRACE_IOCTL printk(KERN_INFO "acquire_snapshot cpu_mask=%*pbl\n", cpumask_pr_args(&cpu_mask));
 
 	/* Acquire lock to spin other CPUs */
 	spin_lock(&snap_lock);
@@ -240,7 +242,6 @@ static int dumpcache_config(unsigned long cmd)
 	return 0;
 }
 
-#define TRACE_IOCTL if (0)
 /* The IOCTL interface of the proc file descriptor is used to pass
  * configuration commands */
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
@@ -457,7 +458,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
 
     rwc.arg = process_data_struct;
     rwc.rmap_one = rmap_one_func;
-    rwc.done = NULL; //done_func;
+    rwc.done = NULL; // perhaps use done_func?
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
     derived_page = phys_to_page(pa);
@@ -470,7 +471,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
 #include "cache_operations.c"
 
 /* ProcFS interface definition */
-static int dumpcache_open(struct inode *inode, struct file *filp)
+static int dumpcache_open(struct inode *inode, struct file *filep)
 {
 	int ret;
 	TRACE_IOCTL printk(KERN_INFO "dumpcache_open {\n");
@@ -480,7 +481,7 @@ static int dumpcache_open(struct inode *inode, struct file *filp)
 		return -EBADFD;
 	}
 
-	ret = seq_open(filp, &dumpcache_seq_ops);
+	ret = seq_open(filep, &dumpcache_seq_ops);
 	TRACE_IOCTL printk(KERN_INFO "dumpcache_open ret=%d }\n", ret);
 	return ret;
 }
@@ -495,12 +496,14 @@ int init_module(void)
 
 	dump_all_indices_done = 0;
 
-	pr_info("Initializing SHUTTER. Entries: Aperture1 count = %ld, Aperture2 count = %ld\n",
+	pr_info("Initializing SHUTTER. Entries: Aperture1 count=%ld, Aperture2 count=%ld\n",
 	       CACHE_BUF_COUNT1, CACHE_BUF_COUNT2);
 
-	/* Resolve the rmap_walk_func required to resolve physical
-	 * address to virtual addresses */
-        // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
+	/*
+         * Resolve the rmap_walk_func required to resolve physical
+	 * address to virtual addresses
+         */
+        rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
 	if (!rmap_walk_func) {
 		/* Attempt to find symbol */
 		preempt_disable();
@@ -513,6 +516,7 @@ int init_module(void)
 #else
                 // TODO(robhenry)
 		rmap_walk_func = 0;
+		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
@@ -521,6 +525,12 @@ int init_module(void)
 		preempt_enable();
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
+		/* Have we found a valid symbol? */
+		if (!rmap_walk_func) {
+			pr_err("Unable to find rmap_walk symbol. Aborting.\n");
+			return -ENOSYS;
+		}
+#else
 		/* Have we found a valid symbol? */
 		if (!rmap_walk_func) {
 			pr_err("Unable to find rmap_walk symbol. Aborting.\n");
