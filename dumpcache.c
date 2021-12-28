@@ -237,12 +237,13 @@ static int dumpcache_config(unsigned long cmd)
 	return 0;
 }
 
+#define TRACE_IOCTL if (0)
 /* The IOCTL interface of the proc file descriptor is used to pass
  * configuration commands */
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	long err;
-        // printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld\n", ioctl, arg);
+        TRACE_IOCTL printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld {\n", ioctl, arg);
 
 	switch (ioctl) {
 	case DUMPCACHE_CMD_CONFIG:
@@ -254,14 +255,38 @@ static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long
 		break;
 
 	default:
-		pr_err("Invalid command: 0x%08x\n", ioctl);
+		pr_err("dumpcache_ioctl Invalid command: 0x%08x\n", ioctl);
 		err = -EINVAL;
 		break;
 	}
+        TRACE_IOCTL printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld err=%ld }\n", ioctl, arg, err);
 
 	return err;
 }
 
+static ssize_t dumpcache_seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos) {
+  ssize_t ret;
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_read size=%ld {", size);
+  ret = seq_read(file, buf, size, ppos);
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_read size=%ld ret=%ld }", size, ret);
+  return ret;
+}
+
+static loff_t dumpcache_seq_lseek(struct file *file, loff_t off, int whence) {
+  loff_t ret;
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_lseek off=%lld whence=%d {", off, whence);
+  ret = seq_lseek(file, off, whence);
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_lseek off=%lld whence=%d =>ret=%lld }", off, whence, ret);
+  return ret;
+}
+
+static int dumpcache_seq_release(struct inode *inode, struct file *file) {
+  int ret;
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_release {");
+  ret = seq_release(inode, file);
+  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_release ret=%d}", ret);
+  return ret;
+}
 
 static const struct seq_operations dumpcache_seq_ops = {
 	.start	= c_start,
@@ -271,17 +296,19 @@ static const struct seq_operations dumpcache_seq_ops = {
 };
 
 /* ProcFS entry setup and definitions  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)  // {
+
 static const struct proc_ops dumpcache_ops = {
-	// .owner = THIS_MODULE,
-	// .proc_unlocked_ioctl = dumpcache_ioctl,
+        .proc_ioctl = dumpcache_ioctl,
 	.proc_compat_ioctl   = dumpcache_ioctl,
 	.proc_open    = dumpcache_open,
-	.proc_read    = seq_read,
-	.proc_lseek	 = seq_lseek,
-	.proc_release = seq_release
+	.proc_read    = dumpcache_seq_read,
+	.proc_lseek   = dumpcache_seq_lseek,
+	.proc_release = dumpcache_seq_release
 };
-#else
+
+#else  // } {
+
 static const struct file_operations dumpcache_ops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = dumpcache_ioctl,
@@ -291,7 +318,8 @@ static const struct file_operations dumpcache_ops = {
 	.llseek	 = seq_lseek,
 	.release = seq_release
 };
-#endif
+
+#endif  // }
 
 //
 // Raspberry Pi 4B has ARM Cortex-A72 in it
@@ -442,20 +470,21 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
 static int dumpcache_open(struct inode *inode, struct file *filp)
 {
 	int ret;
-	// printk(KERN_INFO "dumpcache_open\n");
+	TRACE_IOCTL printk(KERN_INFO "dumpcache_open {\n");
 
 	if (!cur_sample) {
-		pr_err("Something went horribly wrong. Invalid buffer.\n");
+		pr_err("dumpcache_open: Something went horribly wrong. Invalid buffer.\n");
 		return -EBADFD;
 	}
 
 	ret = seq_open(filp, &dumpcache_seq_ops);
+	TRACE_IOCTL printk(KERN_INFO "dumpcache_open ret=%d }\n", ret);
 	return ret;
 }
 
 int init_module(void)
 {
-	printk(KERN_INFO "CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=%ld CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=%ld\n",
+	printk(KERN_INFO "CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=0x%08lx\n",
           CACHE_BUF_SIZE1,
           CACHE_BUF_SIZE2,
           CACHE_BUF_COUNT1,
@@ -479,6 +508,7 @@ int init_module(void)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
 		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
 #else
+                // TODO(robhenry)
 		rmap_walk_func = 0;
 #endif
 
@@ -497,15 +527,15 @@ int init_module(void)
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
-  //
-  // through ubuntu 20.04
-  //
-  #define dumpcache_ioremap ioremap_nocache
+          //
+          // through ubuntu 20.04
+          //
+          #define dumpcache_ioremap ioremap_nocache
 #else
-  //
-  // despite the name, it apparently does no caching
-  //
-  #define dumpcache_ioremap ioremap_cache // doesn' really cache?! WTF?
+          //
+          // despite the name, it apparently does no caching
+          //
+          #define dumpcache_ioremap ioremap_cache // doesn't really cache?! WTF?
 #endif
 
 	/* Map buffer apertures to be accessible from kernel mode */
@@ -531,7 +561,7 @@ int init_module(void)
           __buf_start2 = (union cache_sample *) 0;
         }
 
-        pr_info("__buf_start1=%p __buf_start2=%p\n", __buf_start1, __buf_start2);
+        pr_info("__buf_start1=0x%p __buf_start2=0x%p\n", __buf_start1, __buf_start2);
 	/* Check that we are all good! */
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
 		pr_err("Unable to dumpcache_ioremap buffer space.\n");
