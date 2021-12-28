@@ -14,6 +14,7 @@ dstdir=new.21.04
 dstdir=works.21.04
 
 dstdir=baseline.21.10
+dstdir=new.21.10
 
 mkdir -p $dstdir
 sudo cp /proc/iomem $dstdir
