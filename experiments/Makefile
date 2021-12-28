@@ -51,7 +51,8 @@ clean:
 
 MAX_FILES = 50
 MAX_FILES = 5000
-ALL_CSV := $(shell ls data/*.csv | head -$(MAX_FILES))
+# ALL_CSV := $(shell ls data/*.csv                | head -$(MAX_FILES))
+ALL_CSV := $(shell find data/*.csv -size 3883008c | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
 DURATION_NUM=10
