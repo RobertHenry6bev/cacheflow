@@ -32,7 +32,7 @@
 #define WAYS 16
 
 #pragma GCC push_options
-#pragma GCC optimize ("O1")
+#pragma GCC optimize ("O0")
 
 #define TRACE_IOCTL if (0)
 
@@ -51,12 +51,16 @@ static struct module *get_module_from_addr(unsigned long addr){
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+static bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg);
+static void (*rmap_walk_func) (struct page *page, struct rmap_walk_control *rwc) = NULL;
+static unsigned long (*kallsyms_lookup_name_func) (const char *) = NULL;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0) && 0
 #include <linux/kprobes.h>
 
 static struct kprobe kp;
 static unsigned long lookup_name(const char *name){
-  memset((void *)&kp, 0, sizeof(kp));  // WTF? fails on -O0
+  memset((void *)&kp, 0, sizeof(kp));
   kp.symbol_name = name;
   if (register_kprobe(&kp) < 0) {
     printk(KERN_INFO "lookup_name register_kprobe failed for %s\n", name);
@@ -67,7 +71,18 @@ static unsigned long lookup_name(const char *name){
 }
 #else
 unsigned long lookup_name(const char *name){
-  return kallsyms_lookup_name(name);
+  unsigned long handle;
+  if (kallsyms_lookup_name_func == NULL) {
+    kallsyms_lookup_name_func = (unsigned long (*)(const char *))
+      #include "kallsyms_lookup_name_func_addr.h.out"
+    ;
+  }
+  printk(KERN_INFO "using 0x%p for kallsyms_lookup_name %s\n",
+      kallsyms_lookup_name_func, name);
+  handle = kallsyms_lookup_name_func(name);
+  printk(KERN_INFO "using 0x%p for kallsyms_lookup_name %s => 0x%016lx\n",
+      kallsyms_lookup_name_func, name, handle);
+  return handle;
 }
 #endif
 
@@ -132,9 +147,6 @@ static int dump_all_indices_done;
 
 //spinlock_t snap_lock = SPIN_LOCK_UNLOCK;
 static DEFINE_SPINLOCK(snap_lock);
-
-static bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg);
-static void (*rmap_walk_func) (struct page *page, struct rmap_walk_control *rwc) = NULL;
 
 /* Function prototypes */
 static int dumpcache_open (struct inode *inode, struct file *filep);
@@ -541,8 +553,8 @@ int init_module(void)
 	       CACHE_BUF_COUNT1, CACHE_BUF_COUNT2);
 
 	/*
-         * Resolve the rmap_walk_func required to resolve physical address
-         * to virtual address.
+         * Resolve the rmap_walk_func required to resolve physical addresses
+         * to virtual addresses.
          */
         rmap_walk_func = NULL;
         // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
@@ -566,8 +578,11 @@ int init_module(void)
                 // See https://lwn.net/Articles/813350/ (28Feb2020)
                 //   "Unexporting kallsyms_lookup_name()"
                 //
-                #if 0
+                #if 1
+                  // lookup_name("crc32c_impl");    // This works
+                  // lookup_name("disable_debug_monitors");  // This works
                   rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
+                  // rmap_walk_func = NULL;
                 #else
                   rmap_walk_func = NULL;
                 #endif
@@ -614,11 +629,12 @@ int init_module(void)
         } else {
           __buf_start1 = (union cache_sample *) 0;
         }
-        if (CACHE_BUF_SIZE2 > 0) {
 
-#if 1
+        if (CACHE_BUF_SIZE2 > 0) {
+#if 0
           __buf_start2 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
 #else
+          // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
           __buf_start2 = (union cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
 #endif
 
@@ -642,7 +658,7 @@ int init_module(void)
 
 	/* Setup proc interface */
 	proc_create(MODNAME, 0644, NULL, &dumpcache_ops);
-        pr_info("load_module finished CCC\n");
+        pr_info("load_module finished\n");
 	return 0;
 }
 

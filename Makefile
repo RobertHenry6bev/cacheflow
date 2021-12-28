@@ -18,9 +18,20 @@ dumpcache.ko: dumpcache.c cache_operations.c params_kernel.h Makefile rmap_walk_
 #	make -C /lib/modules/$(UNAME_R)/build M=$(PWD)         modules_install
 
 xxx_rmap_walk_func_addr.h.out: /boot/System.map-$(UNAME_R) Makefile
-	sudo grep rmap_walk_locked $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
+	sudo grep -w rmap_walk_locked $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
 rmap_walk_func_addr.h.out: /proc/kallsyms Makefile
-	     grep rmap_walk_locked $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
+	     grep -w rmap_walk_locked $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
+
+xxx_kallsyms_lookup_name_func_addr.h.out: /boot/System.map-$(UNAME_R) Makefile
+	sudo grep -w kallsyms_lookup_name $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
+kallsyms_lookup_name_func_addr.h.out: /proc/kallsyms Makefile
+	     grep -w kallsyms_lookup_name $< | sed -e 's/^/0x/' -e 's/ .*/ULL/' > $@
+
+.PHONY: fish
+fish: xxx_rmap_walk_func_addr.h.out \
+rmap_walk_func_addr.h.out \
+xxx_kallsyms_lookup_name_func_addr.h.out \
+kallsyms_lookup_name_func_addr.h.out
 
 .PHONY: clean
 clean:
