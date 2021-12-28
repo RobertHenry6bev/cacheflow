@@ -17,7 +17,7 @@ go to Vetco electronics (2 miles off campus) to buy one.
 You will need a monitor that takes HDMI.
 These are hard to find in Redmond MSFT campus.
 
-# Set up usd card
+# Set up USD (micro SD) card
 Do this work on your development Linux workstation.
 
 Download a ubuntu disk image file as necessary for running on a Raspberry Pi
@@ -60,8 +60,10 @@ rpi-imager
 ```
 Navigate to the bottom to "Use Custom",
 and point rpi-imager at the img.xz file you just downloaded.
-Select the Storage kind (use the one with the uSD card outline),
-and do the "WRITE" operation.
+Select the Storage kind and do the "WRITE" operation;
+the storage kind selector is probably a list of things;
+do NOT be confused by the icons!  Look for the icon and name
+that is for the uSD drive you probably inserted on the USB bus.
 
 # Bringup
 Unmount the uSD card from the host machine.
@@ -147,8 +149,12 @@ append to file: total_mem=3968M
 ```
 
 ## For a 4GByte Raspberry pi4, running ubuntu 21.10
+Confirmed on 28Dec2021.
 ```bash
-TODO
+sudo vi /boot/firmware/cmdline.txt
+append to line: mem=3968M
+sudo vi /boot/firmware/config.txt
+append to file: total_mem=3968M
 ```
 
 ## Kernel configuration
