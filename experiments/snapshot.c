@@ -35,7 +35,7 @@
 	"\n"								\
 	"-m\t" "Mimic only. No cache snapshotting but do everything else.\n" \
 	"\n"								\
-	"-a\t" "Asynchrnonous mode. Do not send SIGTOP/SIGCONT to benchmarks.\n" \
+	"-a\t" "Asynchronous mode. Do not send SIGTOP/SIGCONT to benchmarks.\n" \
 	"\n"								\
 	"-f\t" "Force output. Overwrite content of output directory.\n"	\
 	"\n"								\
