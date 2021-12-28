@@ -35,6 +35,11 @@ wget https://cdimage.ubuntu.com/releases/20.04/release/ubuntu-20.04.3-preinstall
 
 ```
 
+For ubuntu 21.04
+```bash
+wget https://cdimage.ubuntu.com/releases/21.04/release/ubuntu-21.04-preinstalled-server-arm64+raspi.img.xz
+```
+
 For ubuntu 21.10,
 visit [here](https://ubuntu.com/download/raspberry-pi)
 and download the server image (you can use the top if you want,
@@ -107,43 +112,55 @@ ipconfig
 You'll need to carve out some amount of memory at the top end
 of the physical address space.
 
-## For a 4GByte Raspberry pi4, running ubuntu 18.04,
-change `/boot/firmware/usercfg.txt`
+## For a 4GByte Raspberry pi4, running ubuntu 18.04, kernel 5.4.0
 ```
 sudo vi /boot/firmware/usercfg.txt
-# append the line
-total_mem=3968M
-# write file
+append to file: total_mem=3968M
+
+# insensitive to btcmd.txt
+# you can probably skip this
+sudo vi /boot/firmware/btcmd.txt
+append to line:  mem=3968M
+
+# insensitive to nobtcmd.txt (only changes to a small reserved block)
+# you can probably skip this
+sudo vi /boot/firmware/nobtcmd.txt
+append to line: mem=3968M
 ```
 
-## For a 4GByte Raspberry pi4, running ubuntu 20.04
-TODO(robhenry)
-change `/boot/firmware/usercfg.txt`
-```
-TODO(robhenry)
-sudo vi /boot/firmware/usercfg.txt
-# append the line
-total_mem=3968M
-# write file
-```
-
-## For a 4GByte Raspberry pi4, running ubuntu 21.10,
-change `/boot/firmware/cmdline.txt`
+## For a 4GByte Raspberry pi4, running ubuntu 20.04, kernel 5.4.0
+Confirmed on 27Dec2021
 ```
 sudo vi /boot/firmware/cmdline.txt
-append  mem=3968M to the end of the single line therein
-# write file
+append to line: mem=3968M
+sudo vi /boot/firmware/usercfg.txt
+append to file: total_mem=3968M
 ```
 
-Then capture iomem layout and reboot
-to make the reent changes stick:
-```
-sudo cat /proc/iomem > $HOME/iomem.old.out
-sudo reboot
-```
-Once the machine comes back up, do:
+## For a 4GByte Raspberry pi4, running ubuntu 21.04, kernel 5.11.0
+Confirmed on 27Dec2021.
 ```bash
-sudo cat /proc/iomem > $HOME/iomem.new.out
-diff $HOME/iomem.old.out $HOME/iomem.new.out
-# TODO(robhenry): These should differ, but they don't
+sudo vi /boot/firmware/cmdline.txt
+append to line: mem=3968M
+sudo vi /boot/firmware/config.txt
+append to file: total_mem=3968M
+```
+
+## For a 4GByte Raspberry pi4, running ubuntu 21.10
+```bash
+TODO
+```
+
+## Kernel configuration
+Turn off address space layout randomization (aslr).
+To do so, (re)edit `/boot/firmware/config.txt`:
+```bash
+sudo vi /boot/firmware/config.txt
+# append to line: nokaslr norandmaps
+
+sudo vi /etc/sysctl.conf
+# append to file:
+kernel.kptr_restrict=0
+kernel.perf_event_paranoid=-1
+kernel.randomize_va_space=0
 ```
