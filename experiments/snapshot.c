@@ -335,6 +335,8 @@ int config_shutter(void)
 	err = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
 	if (err) {
 		perror("Shutter configuration command failed");
+                fflush(stdout);
+                fprintf(stderr, "ioctl failed: err=%d\n", err);
 		exit(EXIT_FAILURE);
 	}
 

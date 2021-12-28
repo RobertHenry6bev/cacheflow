@@ -16,7 +16,7 @@
 /* Command to set the current buffer number */
 #define DUMPCACHE_CMD_SETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 1))
 
-/* Command to retrievet the current buffer number */
+/* Command to retrieve the current buffer number */
 #define DUMPCACHE_CMD_GETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 2))
 
 /* Command to enable/disable buffer autoincrement */
@@ -58,7 +58,7 @@ struct Cortex_L1_I_Insn_Cache {
 
 // -------------------
 //
-// This is fora 1Mbyte L2 cache,
+// This is for a 1Mbyte L2 cache,
 // as found on a Raspberry Pi 4 ARM Cortex-A72 by Broadcom BCM2711
 //
 #define Cortex_L2_NROW 1024
