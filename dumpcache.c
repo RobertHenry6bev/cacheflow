@@ -496,8 +496,14 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
     rwc.done = NULL; // perhaps use done_func?
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
+
     derived_page = phys_to_page(pa);
     if (rmap_walk_func) {
+      //
+      // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
+      //   ... Like rmap_walk,but caller holds relevant rmap lock ...
+      // TODO(robhenry): Do we? where is the lock?
+      //
       rmap_walk_func(derived_page, &rwc);
     }
 }
@@ -535,11 +541,17 @@ int init_module(void)
 	       CACHE_BUF_COUNT1, CACHE_BUF_COUNT2);
 
 	/*
-         * Resolve the rmap_walk_func required to resolve physical
-	 * address to virtual addresses.
+         * Resolve the rmap_walk_func required to resolve physical address
+         * to virtual address.
          */
         rmap_walk_func = NULL;
         // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
+        rmap_walk_func = (void (*)(struct page *, struct rmap_walk_control *))
+          #include "rmap_walk_func_addr.h.out" // from /boot/System.map-5.11.0-1023-raspi
+        ;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0)
+        rmap_walk_func = NULL;  // using the above mechanisms still causes kernel segfault
+#endif
 	if (!rmap_walk_func) {
 		/* Attempt to find symbol */
 		preempt_disable();
@@ -554,7 +566,11 @@ int init_module(void)
                 // See https://lwn.net/Articles/813350/ (28Feb2020)
                 //   "Unexporting kallsyms_lookup_name()"
                 //
-                rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
+                #if 0
+                  rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
+                #else
+                  rmap_walk_func = NULL;
+                #endif
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)

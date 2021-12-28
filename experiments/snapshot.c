@@ -256,10 +256,12 @@ int main (int argc, char ** argv)
 		exit(EXIT_FAILURE);
 	} else if (flag_force && res >= 0){
 		char * __cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
+                int err;
 		sprintf(__cmd, "rm -rf %s", outdir);
 		printf("Removing %s\n", outdir);
 		printf("%s\n", __cmd);
-                (void)system(__cmd);
+                err = system(__cmd);
+                (void)err;
 		free(__cmd);
 		mkdir(outdir, 0775);  // Beware that sudo runs with umask 0022
 	} else {

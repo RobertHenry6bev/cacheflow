@@ -31,9 +31,6 @@ __used __section("__versions") = {
 	{ 0x27a34f1b, "proc_create" },
 	{ 0xe7698027, "ioremap_cache" },
 	{ 0x409bcb62, "mutex_unlock" },
-	{ 0x8bc8d098, "unregister_kprobe" },
-	{ 0x47488791, "register_kprobe" },
-	{ 0xdcb764ad, "memset" },
 	{ 0x2ab7989d, "mutex_lock" },
 	{ 0xa9bc8b74, "module_mutex" },
 	{ 0x43b0c9c3, "preempt_schedule" },
@@ -59,4 +56,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "1429CB5F681FDFFFCF5BDD2");
+MODULE_INFO(srcversion, "164B07B309F10713894A7AA");
