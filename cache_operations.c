@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //
 // Get Tag of L2 cache entry at (index, way).
 // Tag bank select ignored, 2MB L2 cache assumed.

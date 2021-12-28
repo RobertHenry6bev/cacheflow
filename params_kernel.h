@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 #ifndef __CACHEFLOW_PARAMS_KERNEL_H
 #define __CACHEFLOW_PARAMS_KERNEL_H
 

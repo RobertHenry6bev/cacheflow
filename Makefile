@@ -4,10 +4,13 @@ obj-m += dumpcache.o
 run: load
 	cd experiments; make run
 
+# CFLAGS_dumpcache.o := -D_FORTIFY_SOURCE=0
+
 .PHONY: build
 build: dumpcache.ko
-dumpcache.ko: dumpcache.c dumpcache.mod.c cache_operations.c params_kernel.h
+dumpcache.ko: dumpcache.c cache_operations.c params_kernel.h Makefile
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+#	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)         modules_install
 
 .PHONY: clean
 clean:

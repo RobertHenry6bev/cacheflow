@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include <asm/current.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -29,12 +31,45 @@
 #define MODNAME "dumpcache"
 #define WAYS 16
 
-#define FULL_ADDRESS 0
-
 #pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("O1")
 
 #define TRACE_IOCTL if (0)
+
+//
+// Kernel >= 5.7 no longer seems to export some symbols
+// to this out-of-tree module,
+// even though this module is GPL'ed via the MODULE_LICENSE below.
+// See https://lwn.net/Articles/813350/ (28Feb2020) "Unexporting kallsyms_lookup_name()"
+// See https://lwn.net/ml/linux-kernel/20200221232746.6eb84111a0d385bed71613ff@kernel.org/
+//
+// See https://github.com/nbulischeck/tyton/blob/master/src/util.c
+//
+#if 0
+static struct module *get_module_from_addr(unsigned long addr){
+	return  __module_address(addr);
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+#include <linux/kprobes.h>
+
+static struct kprobe kp;
+static unsigned long lookup_name(const char *name){
+  memset((void *)&kp, 0, sizeof(kp));  // WTF? fails on -O0
+  kp.symbol_name = name;
+  if (register_kprobe(&kp) < 0) {
+    printk(KERN_INFO "lookup_name register_kprobe failed for %s\n", name);
+    return 0;
+  }
+  unregister_kprobe(&kp);
+  return (unsigned long)kp.addr;
+}
+#else
+unsigned long lookup_name(const char *name){
+  return kallsyms_lookup_name(name);
+}
+#endif
 
 /*
  * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
@@ -501,9 +536,10 @@ int init_module(void)
 
 	/*
          * Resolve the rmap_walk_func required to resolve physical
-	 * address to virtual addresses
+	 * address to virtual addresses.
          */
-        rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
+        rmap_walk_func = NULL;
+        // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
 	if (!rmap_walk_func) {
 		/* Attempt to find symbol */
 		preempt_disable();
@@ -512,11 +548,13 @@ int init_module(void)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
-		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
+		rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
 #else
-                // TODO(robhenry)
-		rmap_walk_func = 0;
-		rmap_walk_func = (void*) kallsyms_lookup_name("rmap_walk_locked");
+                //
+                // See https://lwn.net/Articles/813350/ (28Feb2020)
+                //   "Unexporting kallsyms_lookup_name()"
+                //
+                rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
@@ -532,10 +570,10 @@ int init_module(void)
 		}
 #else
 		/* Have we found a valid symbol? */
+                // TODO(robhenry)
 		if (!rmap_walk_func) {
-			pr_err("Unable to find rmap_walk symbol. Aborting.\n");
-			return -ENOSYS;
-		}
+                  printk(KERN_INFO "Unknown rmap_walk_func. Will struggle on.\n");
+                }
 #endif
 	}
 
@@ -609,4 +647,11 @@ void cleanup_module(void)
 }
 
 #pragma GCC pop_options
+
+//
+// See https://www.kernel.org/doc/html/latest/process/license-rules.html
+//
+
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Renato Mancuso et. al.");
+MODULE_DESCRIPTION("ARMv8 Cache Dumper using RAMINDEX.");
