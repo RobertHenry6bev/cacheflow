@@ -109,63 +109,63 @@ static int get_Cortex_L1_Insn(void) {
 }
 
 static int fill_Cortex_L1_Insn(void) {
-    uint32_t way;
-    struct Cortex_L1_I_Insn_Cache *cache =
-        (struct Cortex_L1_I_Insn_Cache *)cur_sample;
-    for (way = 0; way < 3; way++) {
-        uint32_t set;
-        for (set = 0; set < 256; set++) {
-            uint32_t va = (set << 6);
-            struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
-            int valid = (p->tag.raw[1] >> 1) & 0x1;
-            int ident = (p->tag.raw[1] >> 0) & 0x1;
-            (void)ident;
-            if (valid) {
-                struct phys_to_pid_type process_data_struct;
-                //
-                // The 2 bits in "common" need not be identical,
-                // and that's observed empirically
-                //
-                // bits va[13:12] are lost.  They overlap the bottom 2 bits
-                // of the phys address.
-                //
-                uint64_t pa = p->tag.raw[0] << 12; // bits 43:12
-                pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
-                phys_to_pid(pa, &process_data_struct);
-                if (0 && process_data_struct.pid != 0) {
-                    printk(KERN_INFO
-                        "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
-                        way, va>>6,
-                        va, pa,
-                        process_data_struct.pid,
-                        process_data_struct.pid);
-                }
-                p->tag.pid = process_data_struct.pid;
-            }
+  uint32_t way;
+  struct Cortex_L1_I_Insn_Cache *cache =
+    (struct Cortex_L1_I_Insn_Cache *)cur_sample;
+  for (way = 0; way < 3; way++) {
+    uint32_t set;
+    for (set = 0; set < 256; set++) {
+      uint32_t va = (set << 6);
+      struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
+      int valid = (p->tag.raw[1] >> 1) & 0x1;
+      int ident = (p->tag.raw[1] >> 0) & 0x1;
+      (void)ident;
+      if (valid) {
+        struct phys_to_pid_type process_data_struct;
+        //
+        // The 2 bits in "common" need not be identical,
+        // and that's observed empirically
+        //
+        // bits va[13:12] are lost.  They overlap the bottom 2 bits
+        // of the phys address.
+        //
+        uint64_t pa = p->tag.raw[0] << 12; // bits 43:12
+        pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
+        phys_to_pid(pa, &process_data_struct);
+        if (0 && process_data_struct.pid != 0) {
+          printk(KERN_INFO
+              "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
+              way, va>>6,
+              va, pa,
+              process_data_struct.pid,
+              process_data_struct.pid);
         }
+        p->tag.pid = process_data_struct.pid;
+      }
     }
-    return 0;
+  }
+  return 0;
 }
 
 static int get_Cortex_L2_Unif(void) {
-    uint32_t way;
-    struct Cortex_L2_Unif_Cache *cache =
-        (struct Cortex_L2_Unif_Cache *)cur_sample;
-    for (way = 0; way < Cortex_L2_NWAY; way++) {
-        uint32_t set;
-        for (set = 0; set < Cortex_L2_NROW; set++) {
-            int quad;
-            struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
-            get_L2tag(way, set, &p->tag);
-            for (quad = 0; quad < 4; quad++) {
-                struct Cortex_L2_Unif_Quad *p =
-                    &cache->way[way].set[set].quad[quad];
-                uint32_t pa = (set << 6) | (quad << 4);
-                get_L2UData(way, pa, p->instruction);
-            }
-        }
+  uint32_t way;
+  struct Cortex_L2_Unif_Cache *cache =
+    (struct Cortex_L2_Unif_Cache *)cur_sample;
+  for (way = 0; way < Cortex_L2_NWAY; way++) {
+    uint32_t set;
+    for (set = 0; set < Cortex_L2_NROW; set++) {
+      int quad;
+      struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
+      get_L2tag(way, set, &p->tag);
+      for (quad = 0; quad < 4; quad++) {
+        struct Cortex_L2_Unif_Quad *p =
+          &cache->way[way].set[set].quad[quad];
+        uint32_t pa = (set << 6) | (quad << 4);
+        get_L2UData(way, pa, p->instruction);
+      }
     }
-    return 0;
+  }
+  return 0;
 }
 
 static int fill_Cortex_L2_Unif(void) {

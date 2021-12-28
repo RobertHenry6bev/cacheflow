@@ -69,7 +69,7 @@ struct Cortex_L2_Unif_Tag {
   uint8_t moesi;  // 2 bits only
   uint8_t id;     // non secure identifier for the physical address
   uint64_t pa_tag;
-  uint64_t pa;   // constructed full physical address
+  uint64_t pa;    // constructed full physical address
   uint32_t raw[1];
 };
 

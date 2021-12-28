@@ -163,10 +163,11 @@ static int acquire_snapshot(void)
 
 	/* Prepare cpu mask with all CPUs except current one */
 	processor_id = get_cpu();
-        // printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
+        printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
 
 	cpumask_copy(&cpu_mask, cpu_online_mask);
-	cpumask_clear_cpu(processor_id, &cpu_mask); //processor_id, &cpu_mask);
+	cpumask_clear_cpu(processor_id, &cpu_mask);
+        printk(KERN_INFO "acquire_snapshot cpu_mask=%*pbl\n", cpumask_pr_args(&cpu_mask));
 
 	/* Acquire lock to spin other CPUs */
 	spin_lock(&snap_lock);
@@ -180,7 +181,9 @@ static int acquire_snapshot(void)
           get_Cortex_L1_Insn();
           fill_Cortex_L1_Insn();
         } else if (1) {
+          // printk(KERN_INFO "start get_Cortex_L2_Unif\n");
           get_Cortex_L2_Unif();
+          // printk(KERN_INFO "start fill_Cortex_L2_Unif\n");
           fill_Cortex_L2_Unif();
         }
 
@@ -255,7 +258,7 @@ static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long
 		break;
 
 	default:
-		pr_err("dumpcache_ioctl Invalid command: 0x%08x\n", ioctl);
+		pr_err("dumpcache_ioctl nvalid command: 0x%08x\n", ioctl);
 		err = -EINVAL;
 		break;
 	}
