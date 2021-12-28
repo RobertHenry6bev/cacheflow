@@ -7,7 +7,7 @@ all: run
 # -r	Set real-time priorities. Parent has highest priority,
 #   	the priority of the benchmarks is set in decreasing order.
 # -m	Mimic only. No cache snapshotting but do everything else.
-# -a	Asynchrnonous mode. Do not send SIGTOP/SIGCONT to benchmarks.
+# -a	Asynchronous mode. Do not send SIGTOP/SIGCONT to benchmarks.
 # -f	Force output. Overwrite content of output directory.
 # -i	Isolation mode. Pin parent alone on CPU 2.
 # -o	Output files to custom directory instead of /tmp/dumpcache.
@@ -25,7 +25,7 @@ VICTIM = e10_benchmark.x
 VICTIM = e11_flood.x
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -p $(PERIOD) -f -o data $(PWD)/$(VICTIM)
+	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
 e11_flood.x: e11_flood.c

@@ -52,8 +52,7 @@
 
 #define MS_TO_NS(ms) \
 	(ms * 1000 * 1000)
-#define MALLOC_CMD_PAD (32)
-
+#define MALLOC_CMD_PAD (2*32)
 
 int flag_rt = 0;
 int flag_out = 0;
@@ -186,8 +185,9 @@ int main (int argc, char ** argv)
 			/* Set custom sampling period in ms */
 			snap_period_ms = strtol(optarg, NULL, 10);
 
-			if (snap_period_ms == 0)
+			if (snap_period_ms == 0) {
 			    flag_periodic = 0;
+                        }
 
 			break;
 		}
@@ -257,13 +257,14 @@ int main (int argc, char ** argv)
 	} else if (flag_force && res >= 0){
 		char * __cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
 		sprintf(__cmd, "rm -rf %s", outdir);
-		printf("Erasing content of %s\n", outdir);
-		/* Do not actually do this for now. Just to be safe. */
-		printf("[%s]\n", __cmd);
+		printf("Removing %s\n", outdir);
+		printf("%s\n", __cmd);
+                (void)system(__cmd);
 		free(__cmd);
+		mkdir(outdir, 0775);  // Beware that sudo runs with umask 0022
 	} else {
 		/* The directory does not exist. */
-		mkdir(outdir, 0666);
+		mkdir(outdir, 0775);  // Beware that sudo runs with umask 0022
 	}
 
 	/* ALWAYS run the parent with top RT priority */
@@ -296,7 +297,7 @@ static inline int open_mod(void)
 
 	/* Open dumpcache interface */
 	if (((fd = open(PROC_FILENAME, O_RDONLY)) < 0)) {
-		perror("Failed to open "PROC_FILENAME" file. Is the module inserted?");
+		perror(PROC_FILENAME);
 		exit(EXIT_FAILURE);
 	}
 
@@ -354,7 +355,7 @@ void launch_benchmarks (void)
 
 	for (i = 0; i < bm_count; ++i) {
 
-		/* Launch all the BMs one by one */
+		/* Launch all the benchmarks one by one */
 		pid_t cpid = fork();
 		if (cpid == -1) {
 			perror("fork");
@@ -417,10 +418,11 @@ void proc_exit_handler (int signo, siginfo_t * info, void * extra)
 
 	for (;;) {
 		pid = waitpid (-1, &wstat, WNOHANG);
-		if (pid == 0)
+		if (pid == 0) {
 			/* No change in the state of the child(ren) */
 			return;
-		else if (pid == -1) {
+                }
+                else if (pid == -1) {
 			/* Something went wrong */
 			perror("Waitpid() exited with error");
 			exit(EXIT_FAILURE);
@@ -446,8 +448,9 @@ void copy_file(char * src, char * dst)
 	int src_fd = open(src, O_RDONLY);
 	ssize_t num_read;
 
-	if (src_fd < 0)
+	if (src_fd < 0) {
 		return;
+        }
 
 	int dst_fd = open(dst, O_RDWR | O_CREAT | O_TRUNC, 0666);
 
@@ -456,8 +459,7 @@ void copy_file(char * src, char * dst)
 		exit(EXIT_FAILURE);
 	}
 
-	while ((num_read = read(src_fd, buf, BUF_SIZE)) > 0)
-	{
+	while ((num_read = read(src_fd, buf, BUF_SIZE)) > 0) {
 		if (write(dst_fd, buf, num_read) != num_read) {
 			perror("Unable to write maps file.");
 			exit(EXIT_FAILURE);
@@ -508,8 +510,9 @@ void snapshot_handler (int signo, siginfo_t * info, void * extra)
 	it.it_value.tv_nsec = MS_TO_NS(snap_period_ms);
 
 	/* Should happen only once */
-	if (!__cmd)
+	if (!__cmd) {
 		__cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
+        }
 
 	/* Send SIGSTOP to all the children (skip in async mode) */
 	for (i = 0; i < bm_count && !flag_async; ++i) {
@@ -580,8 +583,9 @@ void ext_snapshot_handler (int signo, siginfo_t * info, void * extra)
 	int i;
 
 	/* Should happen only once */
-	if (!__cmd)
+	if (!__cmd) {
 		__cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
+        }
 
 	/* Send SIGSTOP to all the children (skip in async mode) */
 	for (i = 0; i < bm_count && !flag_async; ++i) {
@@ -755,8 +759,9 @@ void change_rt_prio(int prio)
 
 		/* default to CPU x for parent */
 		for (i = 0; i < nprocs; ++i) {
-			if (i != PARENT_CPU)
+			if (i != PARENT_CPU) {
 				CPU_SET(i, &set);
+                        }
 		}
 
 		if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
@@ -867,7 +872,7 @@ void read_cache_to_file(const char *filename, int index) {
 
     FILE *outfp = fopen(filename, "w");
     if (outfp == NULL) {
-        perror("Failed to open");
+        perror(filename);
         exit(EXIT_FAILURE);
     }
 
