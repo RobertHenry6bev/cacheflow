@@ -513,12 +513,18 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
 
-    pr_info("calling phys_to_page with 0x%016llx\n", pa);
+    TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx\n", pa);
+
+    if (CACHE_BUF_BASE2 <= pa && pa < CACHE_BUF_END2) {
+      TRACE_IOCTL pr_info("XXXX phys_to_page pa=0x%016llx in our hardware buffer!!!\n", pa);
+      process_data_struct->addr = pa;  // perhaps
+      return;
+    }
     derived_page = phys_to_page(pa);
-    pr_info("calling phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
+    TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
       pa, derived_page, (u64)derived_page);
     if (rmap_walk_func) {
-      pr_info(
+      TRACE_IOCTL pr_info(
         "calling rmap_walk_func 0x%px aka 0x%016llx with derived_page=0x%px aka 0x%016llx\n",
         rmap_walk_func, (u64)rmap_walk_func, derived_page, (u64)derived_page);
       //
@@ -527,7 +533,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
       // TODO(robhenry): Do we? where is the lock?
       //
       rmap_walk_func(derived_page, &rwc);
-      pr_info("rmap_walk_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
+      TRACE_IOCTL pr_info("rmap_walk_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
           (u64)derived_page,
           process_data_struct->pid, process_data_struct->addr);
     }
