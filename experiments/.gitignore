@@ -11,3 +11,4 @@ data/
 *.objdump
 *.out
 core.*
+*.csv

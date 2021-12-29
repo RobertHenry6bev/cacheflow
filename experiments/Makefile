@@ -105,3 +105,11 @@ pylint: /usr/bin/pylint *.py
 	/usr/bin/pylint *.py
 /usr/bin/pylint:
 	sudo apt-get install pylint3
+
+workingsets.csv: analyze_processes.py data/*.csv
+	python3 analyze_processes.py data/*.csv > $@
+
+workingsets.png: plot_workingsets.py workingsets.csv
+	python3 plot_workingsets.py workingsets.csv
+	ls -l *.png
+	file *.png
