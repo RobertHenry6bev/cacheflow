@@ -1,16 +1,18 @@
 //
+// Copyright (c) 2022 Microsoft
+//
+//
 // Flood the icache with straight line code.
 //
 #include <assert.h>
 #include <inttypes.h>
 #include <malloc.h>
 #include <pthread.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "params.h"
+#include "./params.h"
 
 typedef int(*fooworker)(int);
 
@@ -76,31 +78,31 @@ uint32_t *fill_aligned_code(uint32_t *code, size_t ninsns) {
     if (1) {
       code[i++] = 0xffffffff;  // marker
       code[i++] = pid;         // pid
-      uint32_t address_self = (uint32_t)(intptr_t)&code[i];  // Take that, you type system!
+      uint32_t address_self = (uint32_t)(intptr_t)&code[i];  // !!
       code[i++] = address_self;
     } else {
       code[i++] = NOP;
       code[i++] = NOP;
       code[i++] = NOP;
     }
- }
-
- //
- // Generate loop test and branch back to top for more
- //
- code[i++] = 0x71000421; //  subs w1, w1, #0x1
- {
-   int deltai = Ltop - i;
-   uint32_t imm_mask = ((1<<(23-5+1)) - 1) << 5;
-   uint32_t bne = 0x54effe21; //  b.ne 0xd88 // imm field is 23:5; low 4 bits encode cond
-   bne &= ~imm_mask;
-   bne |= (deltai << 5) & imm_mask;
-   code[i++] = bne;
- }
-
- code[i++] = 0xd65f03c0; //  ret
-
- return &code[i];
+  }
+  //
+  // Generate loop test and branch back to top for more
+  //
+  code[i++] = 0x71000421;  //  subs w1, w1, #0x1
+  {
+    int deltai = Ltop - i;
+    uint32_t imm_mask = ((1 << (23-5+1)) - 1) << 5;
+    //
+    //  b.ne 0xd88 // imm field is 23:5; low 4 bits encode cond
+    //
+    uint32_t bne = 0x54effe21;
+    bne &= ~imm_mask;
+    bne |= (deltai << 5) & imm_mask;
+    code[i++] = bne;
+  }
+  code[i++] = 0xd65f03c0;  //  ret
+  return &code[i];
 }
 
 void lock_aligned_code(void *memptr, size_t pagesize, size_t npages) {

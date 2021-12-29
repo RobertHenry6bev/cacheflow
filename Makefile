@@ -57,7 +57,7 @@ disassemble: cache_jig.c experiments/data/cachedump0000.csv
 	gcc -Wall -O0 -g -o $@ $<
 
 CPPLINT_ARGS = \
-  --filter=-runtime/int,-readability/casting \
+  --filter=-runtime/int,-readability/casting,-runtime/printf \
   $(NULL)
 CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
 
@@ -66,6 +66,7 @@ XLINT_VICTIMS = \
   params_kernel.h \
   $(NULL)
 LINT_VICTIMS = \
+  cache_operations.c \
   experiments/e11_flood.c \
   experiments/snapshot.c \
   $(NULL)
