@@ -83,10 +83,10 @@ static unsigned long lookup_name(const char *name){
 //    /boot/firmware/cmdline.txt
 //
 
-#define CACHE_BUF_BASE2 (0xfaffffffUL+1)  //
-#define CACHE_BUF_END2  (0xfbffffffUL+1)  //
-#define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
-#define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(union cache_sample))
+#define CACHE_BUF_BASE (0xfaffffffUL+1)  //
+#define CACHE_BUF_END  (0xfbffffffUL+1)  //
+#define CACHE_BUF_SIZE (CACHE_BUF_END - CACHE_BUF_BASE)
+#define CACHE_BUF_COUNT (CACHE_BUF_SIZE / sizeof(union cache_sample))
 
 /*
  * This variable is to keep track of the current buffer in use by the
@@ -98,7 +98,7 @@ static uint32_t cur_buf = 0;
 static unsigned long flags;
 
 /* Beginning of cache buffer in aperture 2 */
-static union cache_sample * __buf_start2 = NULL;
+static union cache_sample * __buf_start = NULL;
 
 /* Pointer to buffer currently in use. */
 static union cache_sample * cur_sample = NULL;
@@ -158,8 +158,8 @@ static int c_show(struct seq_file *m, void *v)
  */
 static inline union cache_sample * sample_from_index(uint32_t ind)
 {
-        if (ind < CACHE_BUF_COUNT2) {
-		return &__buf_start2[ind];
+        if (ind < CACHE_BUF_COUNT) {
+		return &__buf_start[ind];
 	} else {
 		return NULL;
         }
@@ -204,7 +204,7 @@ static int acquire_snapshot(void)
 	if (flags & DUMPCACHE_CMD_AUTOINC_EN_SHIFT) {
 		cur_buf += 1;
 
-		if (cur_buf >= CACHE_BUF_COUNT2) {
+		if (cur_buf >= CACHE_BUF_COUNT) {
 			cur_buf = 0;
 		}
 
@@ -223,7 +223,7 @@ static int dumpcache_config(unsigned long cmd)
          */
 	if(cmd & DUMPCACHE_CMD_SETBUF_SHIFT) {
 		uint32_t val = DUMPCACHE_CMD_VALUE(cmd);
-		if (val >= CACHE_BUF_COUNT2) {
+		if (val >= CACHE_BUF_COUNT) {
 			return -ENOMEM;
                 }
 		cur_buf = val;
@@ -479,7 +479,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
       pr_info("phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
         all_count, buf_count, (100 * buf_count)/all_count);
     }
-    if (CACHE_BUF_BASE2 <= pa && pa < CACHE_BUF_END2) {
+    if (CACHE_BUF_BASE <= pa && pa < CACHE_BUF_END) {
       buf_count++;
       TRACE_IOCTL pr_info("XXXX phys_to_page pa=0x%016llx in our hardware buffer!!!\n", pa);
       pidinfo->addr = pa;  // perhaps
@@ -526,13 +526,13 @@ static int dumpcache_open(struct inode *inode, struct file *filep)
 
 int init_module(void)
 {
-	pr_info("CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT2=0x%08lx\n",
-            CACHE_BUF_SIZE2, CACHE_BUF_COUNT2);
+	pr_info("CACHE_BUF_SIZE=0x%08lx CACHE_BUF_COUNT=0x%08lx\n",
+            CACHE_BUF_SIZE, CACHE_BUF_COUNT);
 
 	dump_all_indices_done = 0;
 
 	pr_info("Initializing SHUTTER. Entries: Aperture2 count=%ld\n",
-           CACHE_BUF_COUNT2);
+           CACHE_BUF_COUNT);
 
 	/*
          * Resolve the rmap_walk_locked_func required to resolve physical addresses
@@ -573,26 +573,28 @@ int init_module(void)
 	/*
          * Map buffer apertures to be accessible from kernel mode
          */
-        if (CACHE_BUF_SIZE2 > 0) {
+        if (CACHE_BUF_SIZE > 0) {
+          //
           // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
           // See https://lwn.net/Articles/653585/
           // See https://www.kernel.org/doc/html/latest/driver-api/device-io.html
           // See https://elixir.bootlin.com/linux/v5.13.6/source/kernel/iomem.c#L44
-          __buf_start2 = (union cache_sample *) memremap(
-              CACHE_BUF_BASE2,
-              CACHE_BUF_SIZE2,
+          //
+          __buf_start = (union cache_sample *) memremap(
+              CACHE_BUF_BASE,
+              CACHE_BUF_SIZE,
               MEMREMAP_WT  // Write through
               );
 
-          pr_info("__buf_start2=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
-              __buf_start2, (u64)__buf_start2,
-              CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
+          pr_info("__buf_start=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
+              __buf_start, (u64)__buf_start,
+              CACHE_BUF_BASE, CACHE_BUF_COUNT);
         } else {
-          __buf_start2 = (union cache_sample *) 0;
+          __buf_start = (union cache_sample *) 0;
         }
-        pr_info("__buf_start2=0x%px aka 0x%016llx\n", __buf_start2, (u64)__buf_start2);
+        pr_info("__buf_start=0x%px aka 0x%016llx\n", __buf_start, (u64)__buf_start);
 
-	if(!__buf_start2) {
+	if(!__buf_start) {
 		pr_err("Unable to dumpcache_ioremap buffer space.\n");
 		return -ENOMEM;
 	}
@@ -611,9 +613,9 @@ int init_module(void)
 void cleanup_module(void)
 {
 	pr_info("dumpcache module is unloaded\n");
-	if (__buf_start2) {
-		iounmap(__buf_start2);
-		__buf_start2 = NULL;
+	if (__buf_start) {
+		iounmap(__buf_start);
+		__buf_start = NULL;
 	}
 
 	remove_proc_entry(MODNAME, NULL);
