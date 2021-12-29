@@ -45,50 +45,32 @@
 //
 // See https://github.com/nbulischeck/tyton/blob/master/src/util.c
 //
-#if 0
-static struct module *get_module_from_addr(unsigned long addr){
-	return  __module_address(addr);
-}
-#endif
+// robhenry never tried doing an in-tree build of this module to see
+// if it then had visibility into non-exported symbols.
+//
 
 static bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg);
-static void (*rmap_walk_func) (struct page *page, struct rmap_walk_control *rwc) = NULL;
+static void (*rmap_walk_locked_func) (struct page *page, struct rmap_walk_control *rwc) = NULL;
 static unsigned long (*kallsyms_lookup_name_func) (const char *) = NULL;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0) && 0
-#include <linux/kprobes.h>
-
-static struct kprobe kp;
 static unsigned long lookup_name(const char *name){
-  memset((void *)&kp, 0, sizeof(kp));
-  kp.symbol_name = name;
-  if (register_kprobe(&kp) < 0) {
-    pr_info("lookup_name register_kprobe failed for %s\n", name);
-    return 0;
-  }
-  unregister_kprobe(&kp);
-  return (unsigned long)kp.addr;
-}
-#else
-unsigned long lookup_name(const char *name){
   unsigned long handle;
   if (kallsyms_lookup_name_func == NULL) {
     kallsyms_lookup_name_func = (unsigned long (*)(const char *))
       #include "kallsyms_lookup_name_func_addr.h.out"
     ;
   }
-  pr_info("using 0x%px aka 0x%016llx for kallsyms_lookup_name %s\n",
+  pr_info("kallsyms_lookup_name 0x%px aka 0x%016llx %s\n",
       kallsyms_lookup_name_func,
       (u64)kallsyms_lookup_name_func,
       name);
   handle = kallsyms_lookup_name_func(name);
-  pr_info("using 0x%px ala 0x%016llx for kallsyms_lookup_name %s => 0x%016lx\n",
+  pr_info("kallsyms_lookup_name 0x%px aka 0x%016llx %s => 0x%016lx\n",
       kallsyms_lookup_name_func,
       (u64)kallsyms_lookup_name_func,
       name, handle);
   return handle;
 }
-#endif
 
 /*
  * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
@@ -531,19 +513,19 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
       return;
     }
     derived_page = phys_to_page(pa);
-    TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
+    TRACE_IOCTL pr_info("call phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
       pa, derived_page, (u64)derived_page);
-    if (rmap_walk_func) {
+    if (rmap_walk_locked_func) {
       TRACE_IOCTL pr_info(
-        "calling rmap_walk_func 0x%px aka 0x%016llx with derived_page=0x%px aka 0x%016llx\n",
-        rmap_walk_func, (u64)rmap_walk_func, derived_page, (u64)derived_page);
+        "calling rmap_walk_locked_func 0x%px aka 0x%016llx with derived_page=0x%px aka 0x%016llx\n",
+        rmap_walk_locked_func, (u64)rmap_walk_locked_func, derived_page, (u64)derived_page);
       //
       // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
       //   ... Like rmap_walk,but caller holds relevant rmap lock ...
       // TODO(robhenry): Do we? where is the lock?
       //
-      rmap_walk_func(derived_page, &rwc);
-      TRACE_IOCTL pr_info("rmap_walk_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
+      rmap_walk_locked_func(derived_page, &rwc);
+      TRACE_IOCTL pr_info("rmap_walk_locked_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
           (u64)derived_page,
           pidinfo->pid, pidinfo->addr);
     }
@@ -582,72 +564,41 @@ int init_module(void)
 	       CACHE_BUF_COUNT1, CACHE_BUF_COUNT2);
 
 	/*
-         * Resolve the rmap_walk_func required to resolve physical addresses
+         * Resolve the rmap_walk_locked_func required to resolve physical addresses
          * to virtual addresses.
          */
-        rmap_walk_func = NULL;
-        // rmap_walk_func = rmap_walk_locked;  // defined in include/linux/rmap.h
-        rmap_walk_func = (void (*)(struct page *, struct rmap_walk_control *))
-          #include "rmap_walk_func_addr.h.out" // from /boot/System.map-5.11.0-1023-raspi
+        rmap_walk_locked_func = NULL;
+        // rmap_walk_locked_func = rmap_walk_locked;  // defined in include/linux/rmap.h
+        rmap_walk_locked_func = (void (*)(struct page *, struct rmap_walk_control *))
+          #include "rmap_walk_locked_func_addr.h.out" // from /proc/kallsyms
         ;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0)
-        rmap_walk_func = NULL;  // using the above mechanisms still causes kernel segfault
+        rmap_walk_locked_func = NULL;  // using the above mechanisms still causes kernel segfault
 #endif
-	if (!rmap_walk_func) {
+	if (!rmap_walk_locked_func) {
 		/* Attempt to find symbol */
 		preempt_disable();
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
-		mutex_lock(&module_mutex);
+		mutex_lock(&module_mutex); // {
 #endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
-		rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
-#else
-                //
-                // See https://lwn.net/Articles/813350/ (28Feb2020)
-                //   "Unexporting kallsyms_lookup_name()"
-                //
-                #if 1
-                  // lookup_name("crc32c_impl");    // This lookup works
-                  // lookup_name("disable_debug_monitors");  // This lookup works
-                  rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
-                #else
-                  rmap_walk_func = NULL;
-                #endif
-#endif
-
+		rmap_walk_locked_func = (void*) lookup_name("rmap_walk_locked");
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)
-		mutex_unlock(&module_mutex);
+		mutex_unlock(&module_mutex);  // }
 #endif
 		preempt_enable();
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,7,0)
 		/* Have we found a valid symbol? */
-		if (!rmap_walk_func) {
-			pr_err("Unable to find rmap_walk symbol. Aborting.\n");
-			return -ENOSYS;
+		if (!rmap_walk_locked_func) {
+                    pr_err("Unable to find rmap_walk_locked symbol. Aborting.\n");
+                    return -ENOSYS;
 		}
-#else
-		/* Have we found a valid symbol? */
-                // TODO(robhenry)
-		if (!rmap_walk_func) {
-                  pr_info("Unknown rmap_walk_func. Will struggle on.\n");
-                }
-#endif
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
-          //
-          // through ubuntu 20.04
-          //
-          #define dumpcache_ioremap ioremap_nocache
+        #define dumpcache_ioremap ioremap_nocache
 #else
-          //
-          // despite the name, it apparently does no caching
-          //
-          #define dumpcache_ioremap ioremap_cache // doesn't really cache?! WTF?
+        #define dumpcache_ioremap ioremap_cache // doesn't really cache?! WTF?
 #endif
-
 	/* Map buffer apertures to be accessible from kernel mode */
         if (CACHE_BUF_SIZE1 > 0) {
           __buf_start1 = (union cache_sample *) dumpcache_ioremap(
@@ -660,9 +611,6 @@ int init_module(void)
         }
 
         if (CACHE_BUF_SIZE2 > 0) {
-#if 0
-          __buf_start2 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
-#else
           // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
           // See https://lwn.net/Articles/653585/
           // See https://www.kernel.org/doc/html/latest/driver-api/device-io.html
@@ -672,7 +620,6 @@ int init_module(void)
               CACHE_BUF_SIZE2,
               MEMREMAP_WT  // Write through
               );
-#endif
 
           pr_info("__buf_start2=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
               __buf_start2, (u64)__buf_start2,
