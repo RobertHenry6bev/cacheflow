@@ -90,8 +90,8 @@ class LineStats:
             print("run_lg=%3d count=%d" % (run_lg, count,))
 
 def plot_insn_bitmap():
-    """Plot the L1 Cache as a bitmap."""
-    parser = argparse.ArgumentParser("write png file with bitmap of found")
+    """Plot the L1 or L2 Cache as a bitmap."""
+    parser = argparse.ArgumentParser("write png file with bitmap of found instructions")
     parser.add_argument(
         "--insn",
         help="instruction to find",
@@ -218,7 +218,7 @@ def consume_csv_file(input_fd, args, png_file,
                     pid_count[pid] = 0
                 pid_count[pid] += 1
                 if pid not in pid_color:
-                    if False and pid in [0, -1]:
+                    if pid in [0, -1]:
                         pid_color[pid] = [0, 0, 0]
                     else:
                         pid_color[pid] = [
@@ -232,7 +232,7 @@ def consume_csv_file(input_fd, args, png_file,
                     insn = insns[i]
                     # print("i=%4d insn=0x%08x search_insn=0x%08x" % (i, insn, search_insn,))
                     for _x in range(0, args.scale):
-                        match = (insn == search_insn) # and False
+                        match = (insn == search_insn)
                         if do_grey_scale:
                             if match:
                                 png_row.append(0xff)

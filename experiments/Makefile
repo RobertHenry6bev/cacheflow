@@ -93,10 +93,15 @@ data/%.png: data/%.csv plot_insn.py Makefile
           --show_pid \
           --output $@ \
           $<
-#          --grey_scale \
+data/all.png.T: data/*.csv plot_insn.py Makefile
+	python3 plot_insn.py \
+          --scale $(PNG_SCALE) \
+          --show_pid \
+          data/*.csv
+	touch $@
 
 .PHONY: pylint
-pylint: /usr/bin/pylint3 *.py
-	/usr/bin/pylint3 *.py
-/usr/bin/pylint3:
+pylint: /usr/bin/pylint *.py
+	/usr/bin/pylint *.py
+/usr/bin/pylint:
 	sudo apt-get install pylint3
