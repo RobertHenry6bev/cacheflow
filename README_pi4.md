@@ -82,7 +82,7 @@ When top shows no more dpkg like programs burning cycles, then try to do this:
 
 Install the first round of packages:
 ``` bash
-sudo apt-get install --yes net-tools build-essential gdb locate
+sudo apt-get install --yes net-tools build-essential gdb locate universal-ctags
 ```
 
 Set up your ssh environment, for a suitable host name `HOME_MACHINE`:
@@ -159,9 +159,9 @@ append to file: total_mem=3968M
 
 ## Kernel configuration
 Turn off address space layout randomization (aslr).
-To do so, (re)edit `/boot/firmware/config.txt`:
+To do so, (re)edit `/boot/firmware/cmdline.txt`:
 ```bash
-sudo vi /boot/firmware/config.txt
+sudo vi /boot/firmware/cmdline.txt
 # append to line: nokaslr norandmaps
 
 sudo vi /etc/sysctl.conf
@@ -169,4 +169,22 @@ sudo vi /etc/sysctl.conf
 kernel.kptr_restrict=0
 kernel.perf_event_paranoid=-1
 kernel.randomize_va_space=0
+```
+
+# work area
+```
+Tue Dec 28 03:01:18 PM PST 2021
+
+Unable to handle kernel paging request
+at virtual address 0xfffffc0003ec0008LL
+
+from rmap_walk_locked+0x18
+phys_to_pid+0xc8
+
+__buf_start2=0xffff800014000000
+       aka 0x00ffff800014000000
+
+
+calling phys_to_page with 0xfb000140
+
 ```
