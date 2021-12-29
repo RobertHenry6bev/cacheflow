@@ -28,30 +28,31 @@ MODULE_INFO(retpoline, "Y");
 static const struct modversion_info ____versions[]
 __used __section("__versions") = {
 	{ 0xa1ea0080, "module_layout" },
-	{ 0xa339e6e5, "on_each_cpu_cond_mask" },
-	{ 0x4c98d79b, "cpu_hwcap_keys" },
-	{ 0x14b89635, "arm64_const_caps_ready" },
-	{ 0x599fb41c, "kvmalloc_node" },
 	{ 0x2b1b5acd, "remove_proc_entry" },
 	{ 0xedc03953, "iounmap" },
 	{ 0x969a6562, "proc_create" },
 	{ 0x4d924f20, "memremap" },
-	{ 0x741150a6, "seq_open" },
-	{ 0x9688de8b, "memstart_addr" },
-	{ 0xe2b9bf8b, "seq_release" },
-	{ 0xc9953998, "seq_lseek" },
-	{ 0x45115c86, "seq_read" },
-	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0x43b0c9c3, "preempt_schedule" },
+	{ 0xa339e6e5, "on_each_cpu_cond_mask" },
 	{ 0x5e3240a0, "__cpu_online_mask" },
 	{ 0x7a2af7b4, "cpu_number" },
+	{ 0x9f49dcc4, "__stack_chk_fail" },
+	{ 0x9688de8b, "memstart_addr" },
 	{ 0x460b609b, "seq_write" },
+	{ 0x599fb41c, "kvmalloc_node" },
+	{ 0xc5850110, "printk" },
+	{ 0x741150a6, "seq_open" },
+	{ 0x45115c86, "seq_read" },
+	{ 0xc9953998, "seq_lseek" },
+	{ 0xe2b9bf8b, "seq_release" },
+	{ 0x4829a47e, "memcpy" },
+	{ 0x4c98d79b, "cpu_hwcap_keys" },
+	{ 0x14b89635, "arm64_const_caps_ready" },
 	{ 0xb5b54b34, "_raw_spin_unlock" },
 	{ 0xba8fbd64, "_raw_spin_lock" },
-	{ 0xc5850110, "printk" },
 };
 
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "66600FACE5104E5E56A2F6E");
+MODULE_INFO(srcversion, "41AA6C4E40D0043E89D1E98");

@@ -32,7 +32,7 @@
 #define WAYS 16
 
 #pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("O1")
 
 #define TRACE_IOCTL if (0)
 
@@ -63,7 +63,7 @@ static unsigned long lookup_name(const char *name){
   memset((void *)&kp, 0, sizeof(kp));
   kp.symbol_name = name;
   if (register_kprobe(&kp) < 0) {
-    printk(KERN_INFO "lookup_name register_kprobe failed for %s\n", name);
+    pr_info("lookup_name register_kprobe failed for %s\n", name);
     return 0;
   }
   unregister_kprobe(&kp);
@@ -77,11 +77,15 @@ unsigned long lookup_name(const char *name){
       #include "kallsyms_lookup_name_func_addr.h.out"
     ;
   }
-  printk(KERN_INFO "using 0x%p for kallsyms_lookup_name %s\n",
-      kallsyms_lookup_name_func, name);
+  pr_info("using 0x%px aka 0x%016llx for kallsyms_lookup_name %s\n",
+      kallsyms_lookup_name_func,
+      (u64)kallsyms_lookup_name_func,
+      name);
   handle = kallsyms_lookup_name_func(name);
-  printk(KERN_INFO "using 0x%p for kallsyms_lookup_name %s => 0x%016lx\n",
-      kallsyms_lookup_name_func, name, handle);
+  pr_info("using 0x%px ala 0x%016llx for kallsyms_lookup_name %s => 0x%016lx\n",
+      kallsyms_lookup_name_func,
+      (u64)kallsyms_lookup_name_func,
+      name, handle);
   return handle;
 }
 #endif
@@ -212,11 +216,11 @@ static int acquire_snapshot(void)
 
 	/* Prepare cpu mask with all CPUs except current one */
 	processor_id = get_cpu();
-        TRACE_IOCTL printk(KERN_INFO "acquire_snapshot processor_id=%d\n", processor_id);
+        TRACE_IOCTL pr_info("acquire_snapshot processor_id=%d\n", processor_id);
 
 	cpumask_copy(&cpu_mask, cpu_online_mask);
 	cpumask_clear_cpu(processor_id, &cpu_mask);
-        TRACE_IOCTL printk(KERN_INFO "acquire_snapshot cpu_mask=%*pbl\n", cpumask_pr_args(&cpu_mask));
+        TRACE_IOCTL pr_info("acquire_snapshot cpu_mask=%*pbl\n", cpumask_pr_args(&cpu_mask));
 
 	/* Acquire lock to spin other CPUs */
 	spin_lock(&snap_lock);
@@ -230,9 +234,9 @@ static int acquire_snapshot(void)
           get_Cortex_L1_Insn();
           fill_Cortex_L1_Insn();
         } else if (1) {
-          // printk(KERN_INFO "start get_Cortex_L2_Unif\n");
+          // pr_info("start get_Cortex_L2_Unif\n");
           get_Cortex_L2_Unif();
-          // printk(KERN_INFO "start fill_Cortex_L2_Unif\n");
+          // pr_info("start fill_Cortex_L2_Unif\n");
           fill_Cortex_L2_Unif();
         }
 
@@ -294,7 +298,7 @@ static int dumpcache_config(unsigned long cmd)
 static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	long err;
-        TRACE_IOCTL printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld {\n", ioctl, arg);
+        TRACE_IOCTL pr_info("dumpcache_ioctl ioctl=%d arg=%ld {\n", ioctl, arg);
 
 	switch (ioctl) {
 	case DUMPCACHE_CMD_CONFIG:
@@ -310,32 +314,32 @@ static long dumpcache_ioctl(struct file *file, unsigned int ioctl, unsigned long
 		err = -EINVAL;
 		break;
 	}
-        TRACE_IOCTL printk(KERN_INFO "dumpcache_ioctl ioctl=%d arg=%ld err=%ld }\n", ioctl, arg, err);
+        TRACE_IOCTL pr_info("dumpcache_ioctl ioctl=%d arg=%ld err=%ld }\n", ioctl, arg, err);
 
 	return err;
 }
 
 static ssize_t dumpcache_seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos) {
   ssize_t ret;
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_read size=%ld {", size);
+  TRACE_IOCTL pr_info("dumpcache_seq_read size=%ld {", size);
   ret = seq_read(file, buf, size, ppos);
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_read size=%ld ret=%ld }", size, ret);
+  TRACE_IOCTL pr_info("dumpcache_seq_read size=%ld ret=%ld }", size, ret);
   return ret;
 }
 
 static loff_t dumpcache_seq_lseek(struct file *file, loff_t off, int whence) {
   loff_t ret;
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_lseek off=%lld whence=%d {", off, whence);
+  TRACE_IOCTL pr_info("dumpcache_seq_lseek off=%lld whence=%d {", off, whence);
   ret = seq_lseek(file, off, whence);
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_lseek off=%lld whence=%d =>ret=%lld }", off, whence, ret);
+  TRACE_IOCTL pr_info("dumpcache_seq_lseek off=%lld whence=%d =>ret=%lld }", off, whence, ret);
   return ret;
 }
 
 static int dumpcache_seq_release(struct inode *inode, struct file *file) {
   int ret;
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_release {");
+  TRACE_IOCTL pr_info("dumpcache_seq_release {");
   ret = seq_release(inode, file);
-  TRACE_IOCTL printk(KERN_INFO "dumpcache_seq_release ret=%d}", ret);
+  TRACE_IOCTL pr_info("dumpcache_seq_release ret=%d}", ret);
   return ret;
 }
 
@@ -442,7 +446,6 @@ asm_ramindex_insn_mrs(u32 *ildata, u8 sel) {
 
 bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long addr, void *arg)
 {
-
 	struct mm_struct* mm;
 	struct task_struct* ts;
 	struct process_data
@@ -453,7 +456,6 @@ bool rmap_one_func(struct page *page, struct vm_area_struct *vma, unsigned long 
 
 	((struct process_data*) arg)->addr = 0;
 
-	// Check if mm struct is null
 	mm = vma->vm_mm;
 	if (!mm) {
 		((struct process_data*) arg)->pid = (pid_t)99999;
@@ -500,23 +502,34 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
     struct page *derived_page;
     struct rmap_walk_control rwc;
 
+    memset(process_data_struct, 0, sizeof(struct phys_to_pid_type));  // needed?
     process_data_struct->pid = 0;
     process_data_struct->addr = 0;
 
+    memset(&rwc, 0, sizeof(rwc));  // needed? WTF? compiler sizeof() errors
     rwc.arg = process_data_struct;
     rwc.rmap_one = rmap_one_func;
     rwc.done = NULL; // perhaps use done_func?
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
 
+    pr_info("calling phys_to_page with 0x%016llx\n", pa);
     derived_page = phys_to_page(pa);
+    pr_info("calling phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
+      pa, derived_page, (u64)derived_page);
     if (rmap_walk_func) {
+      pr_info(
+        "calling rmap_walk_func 0x%px aka 0x%016llx with derived_page=0x%px aka 0x%016llx\n",
+        rmap_walk_func, (u64)rmap_walk_func, derived_page, (u64)derived_page);
       //
       // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
       //   ... Like rmap_walk,but caller holds relevant rmap lock ...
       // TODO(robhenry): Do we? where is the lock?
       //
       rmap_walk_func(derived_page, &rwc);
+      pr_info("rmap_walk_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
+          (u64)derived_page,
+          process_data_struct->pid, process_data_struct->addr);
     }
 }
 
@@ -527,7 +540,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
 static int dumpcache_open(struct inode *inode, struct file *filep)
 {
 	int ret;
-	TRACE_IOCTL printk(KERN_INFO "dumpcache_open {\n");
+	TRACE_IOCTL pr_info("dumpcache_open {\n");
 
 	if (!cur_sample) {
 		pr_err("dumpcache_open: Something went horribly wrong. Invalid buffer.\n");
@@ -535,13 +548,13 @@ static int dumpcache_open(struct inode *inode, struct file *filep)
 	}
 
 	ret = seq_open(filep, &dumpcache_seq_ops);
-	TRACE_IOCTL printk(KERN_INFO "dumpcache_open ret=%d }\n", ret);
+	TRACE_IOCTL pr_info("dumpcache_open ret=%d }\n", ret);
 	return ret;
 }
 
 int init_module(void)
 {
-	printk(KERN_INFO "CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=0x%08lx\n",
+	pr_info("CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=0x%08lx\n",
           CACHE_BUF_SIZE1,
           CACHE_BUF_SIZE2,
           CACHE_BUF_COUNT1,
@@ -579,10 +592,9 @@ int init_module(void)
                 //   "Unexporting kallsyms_lookup_name()"
                 //
                 #if 1
-                  // lookup_name("crc32c_impl");    // This works
-                  // lookup_name("disable_debug_monitors");  // This works
+                  // lookup_name("crc32c_impl");    // This lookup works
+                  // lookup_name("disable_debug_monitors");  // This lookup works
                   rmap_walk_func = (void*) lookup_name("rmap_walk_locked");
-                  // rmap_walk_func = NULL;
                 #else
                   rmap_walk_func = NULL;
                 #endif
@@ -603,7 +615,7 @@ int init_module(void)
 		/* Have we found a valid symbol? */
                 // TODO(robhenry)
 		if (!rmap_walk_func) {
-                  printk(KERN_INFO "Unknown rmap_walk_func. Will struggle on.\n");
+                  pr_info("Unknown rmap_walk_func. Will struggle on.\n");
                 }
 #endif
 	}
@@ -624,8 +636,9 @@ int init_module(void)
         if (CACHE_BUF_SIZE1 > 0) {
           __buf_start1 = (union cache_sample *) dumpcache_ioremap(
               CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
-          pr_info("__buf_start1=0x%p from 0x%016lx for %ld\n",
-              __buf_start1, CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
+          pr_info("__buf_start1=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
+              __buf_start1, (u64)__buf_start1,
+              CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
         } else {
           __buf_start1 = (union cache_sample *) 0;
         }
@@ -635,17 +648,20 @@ int init_module(void)
           __buf_start2 = (union cache_sample *) dumpcache_ioremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2);
 #else
           // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
+          // See https://lwn.net/Articles/653585/
           __buf_start2 = (union cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
 #endif
 
-          pr_info("__buf_start2=0x%p from 0x%016lx for %ld\n",
-              __buf_start2, CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
+          pr_info("__buf_start2=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
+              __buf_start2, (u64)__buf_start2,
+              CACHE_BUF_BASE2, CACHE_BUF_COUNT2);
         } else {
           __buf_start2 = (union cache_sample *) 0;
         }
 
-        pr_info("__buf_start1=0x%p __buf_start2=0x%p\n", __buf_start1, __buf_start2);
-	/* Check that we are all good! */
+        pr_info("__buf_start1=0x%px aka 0x%016llx\n", __buf_start1, (u64)__buf_start1);
+        pr_info("__buf_start2=0x%px aka 0x%016llx\n", __buf_start2, (u64)__buf_start2);
+
 	if(/*!__buf_start1 ||*/ !__buf_start2) {
 		pr_err("Unable to dumpcache_ioremap buffer space.\n");
 		return -ENOMEM;
@@ -664,7 +680,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	printk(KERN_INFO "dumpcache module is unloaded\n");
+	pr_info("dumpcache module is unloaded\n");
 	if (__buf_start1) {
 		iounmap(__buf_start1);
 		__buf_start1 = NULL;
