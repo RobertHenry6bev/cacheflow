@@ -498,16 +498,19 @@ bool invalid_func(struct vm_area_struct *vma, void *arg)
 	return false;
 }
 
-void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
+void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
     struct page *derived_page;
     struct rmap_walk_control rwc;
 
-    memset(process_data_struct, 0, sizeof(struct phys_to_pid_type));  // needed?
-    process_data_struct->pid = 0;
-    process_data_struct->addr = 0;
+    static int all_count = 0;
+    static int buf_count = 0;
 
-    memset(&rwc, 0, sizeof(rwc));  // needed? WTF? compiler sizeof() errors
-    rwc.arg = process_data_struct;
+    // memset(pidinfo, 0, sizeof(struct phys_to_pid_type));  // needed?
+    pidinfo->pid = 0;
+    pidinfo->addr = 0;
+
+    // memset(&rwc, 0, sizeof(rwc));  // needed? WTF? compiler sizeof() errors
+    rwc.arg = pidinfo;
     rwc.rmap_one = rmap_one_func;
     rwc.done = NULL; // perhaps use done_func?
     rwc.anon_lock = NULL;
@@ -515,9 +518,16 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
 
     TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx\n", pa);
 
+    all_count++;
+    if ((all_count % 10000) == 0) {
+      pr_info("phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
+        all_count, buf_count, (100 * buf_count)/all_count);
+    }
     if (CACHE_BUF_BASE2 <= pa && pa < CACHE_BUF_END2) {
+      buf_count++;
       TRACE_IOCTL pr_info("XXXX phys_to_page pa=0x%016llx in our hardware buffer!!!\n", pa);
-      process_data_struct->addr = pa;  // perhaps
+      pidinfo->addr = pa;  // perhaps
+      pidinfo->pid = -1;
       return;
     }
     derived_page = phys_to_page(pa);
@@ -535,7 +545,7 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *process_data_struct) {
       rmap_walk_func(derived_page, &rwc);
       TRACE_IOCTL pr_info("rmap_walk_func on 0x%016llx returns pid=%d and addr=0x%016llx\n",
           (u64)derived_page,
-          process_data_struct->pid, process_data_struct->addr);
+          pidinfo->pid, pidinfo->addr);
     }
 }
 
@@ -655,7 +665,13 @@ int init_module(void)
 #else
           // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
           // See https://lwn.net/Articles/653585/
-          __buf_start2 = (union cache_sample *) memremap(CACHE_BUF_BASE2, CACHE_BUF_SIZE2, MEMREMAP_WB);
+          // See https://www.kernel.org/doc/html/latest/driver-api/device-io.html
+          // See https://elixir.bootlin.com/linux/v5.13.6/source/kernel/iomem.c#L44
+          __buf_start2 = (union cache_sample *) memremap(
+              CACHE_BUF_BASE2,
+              CACHE_BUF_SIZE2,
+              MEMREMAP_WT  // Write through
+              );
 #endif
 
           pr_info("__buf_start2=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
