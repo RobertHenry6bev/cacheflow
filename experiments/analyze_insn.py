@@ -7,6 +7,8 @@ Analyze data held in cache looking for many things.
 import argparse
 import csv
 
+import capstone
+
 IS_L2 = True
 if IS_L2:
     FIELD_NAMES = [] \
@@ -65,8 +67,19 @@ def consume_csv_file_analyze(input_fd):
         else:
             last_phys_addr = phys_addr
             new_contents[last_phys_addr] = contents[phys_addr]
+    md = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
     for phys_addr in sorted(new_contents.keys()):
         print("0x%016x: %4d" % (phys_addr, len(new_contents[phys_addr]),))
+        byte_delta = 0
+        for content in new_contents[phys_addr]:
+            ndecoded = 0
+            for insn in md.disasm(content.to_bytes(4, 'little'), phys_addr + byte_delta):
+                print("  0x%016x 0x%08x\t%s\t%s" % (phys_addr + byte_delta, content, insn.mnemonic, insn.op_str,))
+                ndecoded += 1
+            if ndecoded == 0:
+                print("  0x%016x 0x%08x\t%s\t%s" % (phys_addr + byte_delta, content, "???", "???",))
+               
+            byte_delta += 4
 
 if __name__ == "__main__":
     analyze_cache_contents()
