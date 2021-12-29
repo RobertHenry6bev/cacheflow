@@ -55,3 +55,21 @@ disassemble: cache_jig.c experiments/data/cachedump0000.csv
 
 %.x: %.c
 	gcc -Wall -O0 -g -o $@ $<
+
+CPPLINT_ARGS = \
+  --filter=-runtime/int,-readability/casting \
+  $(NULL)
+CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
+
+XLINT_VICTIMS = \
+  dumpcache.c \
+  params_kernel.h \
+  $(NULL)
+LINT_VICTIMS = \
+  experiments/e11_flood.c \
+  experiments/snapshot.c \
+  $(NULL)
+
+.PHONY: lint
+lint: $(CPPLINT) $(LINT_VICTIMS)
+	python3 $(CPPLINT) $(CPPLINT_ARGS) $(LINT_VICTIMS)

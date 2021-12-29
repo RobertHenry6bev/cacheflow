@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Copyright (c) 2021 Renato Mancuso et. al.
+ */
 
-#ifndef __CACHEFLOW_PARAMS_KERNEL_H
-#define __CACHEFLOW_PARAMS_KERNEL_H
+#ifndef PARAMS_KERNEL_H_
+#define PARAMS_KERNEL_H_
 
 #include <linux/types.h>
 
@@ -12,26 +15,25 @@
 
 #define DUMPCACHE_CMD_VALUE_WIDTH  16
 #define DUMPCACHE_CMD_VALUE_MASK   ((1 << DUMPCACHE_CMD_VALUE_WIDTH) - 1)
-#define DUMPCACHE_CMD_VALUE(cmd)		\
-	(cmd & DUMPCACHE_CMD_VALUE_MASK)
+#define DUMPCACHE_CMD_VALUE(cmd)  (cmd & DUMPCACHE_CMD_VALUE_MASK)  // NOLINT
 
 /* Command to set the current buffer number */
-#define DUMPCACHE_CMD_SETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 1))
+#define DUMPCACHE_CMD_SETBUF_SHIFT        (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 1))
 
 /* Command to retrieve the current buffer number */
-#define DUMPCACHE_CMD_GETBUF_SHIFT           (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 2))
+#define DUMPCACHE_CMD_GETBUF_SHIFT        (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 2))
 
 /* Command to enable/disable buffer autoincrement */
-#define DUMPCACHE_CMD_AUTOINC_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 3))
-#define DUMPCACHE_CMD_AUTOINC_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 4))
+#define DUMPCACHE_CMD_AUTOINC_EN_SHIFT    (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 3))
+#define DUMPCACHE_CMD_AUTOINC_DIS_SHIFT   (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 4))
 
 /* Command to enable/disable address resolution */
-#define DUMPCACHE_CMD_RESOLVE_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 5))
-#define DUMPCACHE_CMD_RESOLVE_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 6))
+#define DUMPCACHE_CMD_RESOLVE_EN_SHIFT    (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 5))
+#define DUMPCACHE_CMD_RESOLVE_DIS_SHIFT   (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 6))
 
 /* Command to enable/disable snapshot timestamping */
-#define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT       (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
-#define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT      (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
+#define DUMPCACHE_CMD_TIMESTAMP_EN_SHIFT  (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 7))
+#define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
 #define DUMPCACHE_DO_L1 1
 #define DUMPCACHE_DO_L2 2
@@ -102,4 +104,4 @@ struct phys_to_pid_type {
     uint64_t addr;
 };
 
-#endif  // __CACHEFLOW_PARAMS_KERNEL_H
+#endif  // PARAMS_KERNEL_H_
