@@ -62,10 +62,10 @@ CPPLINT_ARGS = \
 CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
 
 XLINT_VICTIMS = \
-  dumpcache.c \
-  params_kernel.h \
   $(NULL)
 LINT_VICTIMS = \
+  dumpcache.c \
+  params_kernel.h \
   cache_operations.c \
   experiments/e11_flood.c \
   experiments/snapshot.c \
