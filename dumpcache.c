@@ -72,24 +72,6 @@ static unsigned long lookup_name(const char *name){
   return handle;
 }
 
-/*
- * Unfortunately this (which? -rrh) platform has two apertures for DRAM, with a
- * large hole in the middle. Here is what the address space looks like
- * when the kernel is booted with mem=2560 (2.5 GB).
- *
- * block 1: 2.1Gbyte
- * 0x080000000 -> 0x0fedfffff:   Normal memory (aperture 1)
- * 0x0fee00000 -> 0x0ffffffff:   Cache buffer, part 1, size = 0x01200000 (aperture 1)
- *
- * block 2: 2.1Gbyte
- * 0x100000000 -> 0x1211fffff:   Normal memory (aperture 2)
- * 0x121200000 -> 0x17fffffff:   Cache buffer, part 2, size = 0x5ee00000 (aperture 2)
- */
-
-#define CACHE_BUF_BASE1 0x0fee00000UL
-#define CACHE_BUF_END1  0x0fee00000UL
-//#define CACHE_BUF_END1 0x100000000UL
-
 //
 // This is an inelegant way to make kernel args include mem=3968M (per Renato)
 //
@@ -103,11 +85,7 @@ static unsigned long lookup_name(const char *name){
 
 #define CACHE_BUF_BASE2 (0xfaffffffUL+1)  //
 #define CACHE_BUF_END2  (0xfbffffffUL+1)  //
-
-#define CACHE_BUF_SIZE1 (CACHE_BUF_END1 - CACHE_BUF_BASE1)
 #define CACHE_BUF_SIZE2 (CACHE_BUF_END2 - CACHE_BUF_BASE2)
-
-#define CACHE_BUF_COUNT1 (CACHE_BUF_SIZE1 / sizeof(union cache_sample))
 #define CACHE_BUF_COUNT2 (CACHE_BUF_SIZE2 / sizeof(union cache_sample))
 
 /*
@@ -118,9 +96,6 @@ static unsigned long lookup_name(const char *name){
 
 static uint32_t cur_buf = 0;
 static unsigned long flags;
-
-/* Beginning of cache buffer in aperture 1 */
-static union cache_sample * __buf_start1 = NULL;
 
 /* Beginning of cache buffer in aperture 2 */
 static union cache_sample * __buf_start2 = NULL;
@@ -178,14 +153,13 @@ static int c_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-/* This function returns a pointer to the ind-th sample in the
- * buffer. */
+/*
+ * This function returns a pointer to the ind-th sample in the buffer.
+ */
 static inline union cache_sample * sample_from_index(uint32_t ind)
 {
-	if (ind < CACHE_BUF_COUNT1) {
-		return &__buf_start1[ind];
-        } else if (ind < CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
-		return &__buf_start2[ind - CACHE_BUF_COUNT1];
+        if (ind < CACHE_BUF_COUNT2) {
+		return &__buf_start2[ind];
 	} else {
 		return NULL;
         }
@@ -230,7 +204,7 @@ static int acquire_snapshot(void)
 	if (flags & DUMPCACHE_CMD_AUTOINC_EN_SHIFT) {
 		cur_buf += 1;
 
-		if (cur_buf >= CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
+		if (cur_buf >= CACHE_BUF_COUNT2) {
 			cur_buf = 0;
 		}
 
@@ -243,15 +217,15 @@ static int acquire_snapshot(void)
 
 static int dumpcache_config(unsigned long cmd)
 {
-	/* Set the sample buffer according to what was passed from user
-	 * space */
+	/*
+         * Set the sample buffer according to what was passed from user
+	 * space
+         */
 	if(cmd & DUMPCACHE_CMD_SETBUF_SHIFT) {
 		uint32_t val = DUMPCACHE_CMD_VALUE(cmd);
-
-		if (val >= CACHE_BUF_COUNT1 + CACHE_BUF_COUNT2) {
+		if (val >= CACHE_BUF_COUNT2) {
 			return -ENOMEM;
                 }
-
 		cur_buf = val;
 		cur_sample = sample_from_index(val);
 	}
@@ -552,16 +526,13 @@ static int dumpcache_open(struct inode *inode, struct file *filep)
 
 int init_module(void)
 {
-	pr_info("CACHE_BUF_SIZE1=%ld CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT1=%ld CACHE_BUF_COUNT2=0x%08lx\n",
-          CACHE_BUF_SIZE1,
-          CACHE_BUF_SIZE2,
-          CACHE_BUF_COUNT1,
-          CACHE_BUF_COUNT2);
+	pr_info("CACHE_BUF_SIZE2=0x%08lx CACHE_BUF_COUNT2=0x%08lx\n",
+            CACHE_BUF_SIZE2, CACHE_BUF_COUNT2);
 
 	dump_all_indices_done = 0;
 
-	pr_info("Initializing SHUTTER. Entries: Aperture1 count=%ld, Aperture2 count=%ld\n",
-	       CACHE_BUF_COUNT1, CACHE_BUF_COUNT2);
+	pr_info("Initializing SHUTTER. Entries: Aperture2 count=%ld\n",
+           CACHE_BUF_COUNT2);
 
 	/*
          * Resolve the rmap_walk_locked_func required to resolve physical addresses
@@ -599,17 +570,9 @@ int init_module(void)
 #else
         #define dumpcache_ioremap ioremap_cache // doesn't really cache?! WTF?
 #endif
-	/* Map buffer apertures to be accessible from kernel mode */
-        if (CACHE_BUF_SIZE1 > 0) {
-          __buf_start1 = (union cache_sample *) dumpcache_ioremap(
-              CACHE_BUF_BASE1, CACHE_BUF_SIZE1);
-          pr_info("__buf_start1=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
-              __buf_start1, (u64)__buf_start1,
-              CACHE_BUF_BASE1, CACHE_BUF_COUNT1);
-        } else {
-          __buf_start1 = (union cache_sample *) 0;
-        }
-
+	/*
+         * Map buffer apertures to be accessible from kernel mode
+         */
         if (CACHE_BUF_SIZE2 > 0) {
           // See https://elixir.bootlin.com/linux/v5.11.22/source/include/linux/io.h#L151
           // See https://lwn.net/Articles/653585/
@@ -627,11 +590,9 @@ int init_module(void)
         } else {
           __buf_start2 = (union cache_sample *) 0;
         }
-
-        pr_info("__buf_start1=0x%px aka 0x%016llx\n", __buf_start1, (u64)__buf_start1);
         pr_info("__buf_start2=0x%px aka 0x%016llx\n", __buf_start2, (u64)__buf_start2);
 
-	if(/*!__buf_start1 ||*/ !__buf_start2) {
+	if(!__buf_start2) {
 		pr_err("Unable to dumpcache_ioremap buffer space.\n");
 		return -ENOMEM;
 	}
@@ -650,11 +611,6 @@ int init_module(void)
 void cleanup_module(void)
 {
 	pr_info("dumpcache module is unloaded\n");
-	if (__buf_start1) {
-		iounmap(__buf_start1);
-		__buf_start1 = NULL;
-	}
-
 	if (__buf_start2) {
 		iounmap(__buf_start2);
 		__buf_start2 = NULL;
