@@ -33,45 +33,81 @@ else:
     NWAY =   3
     NSET = 256
 
+class RunCountAccumulator:
+    """This is an accumulator when counting run frequency."""
+    def __init__(self):
+        self.count = 0
+        self.pids = []
+        self.addrs = []
+    def incr(self, pid, addr):
+        """Increment ourselves"""
+        self.count += 1
+        self.pids.append(pid)
+        self.addrs.append(addr)
+
 class InsnRunAnalyzer:
-    """Look for instruction runs of length between lg_lb and lg_ub"""
+    """Look for instruction runs of length between lg_lb and lg_ub.
+    This is done by brute force using a single large map of tuples
+    of varying length.  There is no pruning."""
     def __init__(self, lg_lb, lg_ub):
         self.lg_lb = lg_lb
         self.lg_ub = lg_ub
         self.runcount = {}
-    def analyze_insn_run(self, _phys_addr, insns):
+
+    def print_insn_run(self, pid, phys_addr, insns, decoder):
+        """Print an instruction run."""
+        for i in range(0, len(insns)):
+            insn = insns[i]
+            insn_phys_addr = phys_addr + i*4
+            print("%6d %3d 0x%016x 0x%08x %s" % (
+                pid,
+                i,
+                insn_phys_addr,
+                insn,
+                decoder.decode_to_str(insn_phys_addr, insn),
+                ))
+        print("")
+
+    def analyze_insn_run(self, pid, phys_addr, insns, decoder):
         """popcount runs of instructions of various lengths"""
+        self.print_insn_run(pid, phys_addr, insns, decoder)
         ninsns = len(insns)
         for run_lg in range(self.lg_lb, self.lg_ub+1):
             for i in range(0, ninsns - run_lg):
                 insn_slice = tuple(insns[i:i+run_lg])
                 if insn_slice not in self.runcount:
-                    self.runcount[insn_slice] = 0
-                self.runcount[insn_slice] += 1
+                    self.runcount[insn_slice] = RunCountAccumulator()
+                self.runcount[insn_slice].incr(pid, phys_addr + i * 4)
+
     def dump(self, decoder):
         """Dump out the instruction runs."""
         last_len = 0
-        # by descending count
-        # for insn_slice, count in sorted(self.runcount.items(), reverse=True, key=lambda x:x[1]):
-        # by descending length of run
-        for insn_slice, count in sorted(self.runcount.items(),
-                reverse=True, key=lambda x: len(x[0])):
+        # sort by descending length of run
+        for insn_slice, accum_object in sorted(self.runcount.items(),
+                reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
             if last_len != len(insn_slice):
                 last_len = len(insn_slice)
                 print("")
-            if count <= 1:
+            if accum_object.count <= 1:
                 continue
             decode = ""
             sep = ""
-            for content in insn_slice:
-                decoded_value = decoder.decode(0x0, content)
+            for insn in insn_slice:
+                decoded_value = decoder.decode(0x0, insn)
                 if decoded_value:
                     if len(decoded_value) == 2:
                         decode += "%s%s %s" % (sep, decoded_value[0], decoded_value[1],)
                     else:
                         decode += "%s%s" % (sep, decoded_value[0],)
                     sep = "; "
-            print("%8d lg=%d %s" % (count, len(insn_slice), decode))
+            print("%8d lg=%d pids=%s addrs=%s insns=%s %s" % (
+                 accum_object.count,
+                 len(insn_slice),
+                 accum_object.pids,
+                 ["0x%016x" % (addr,) for addr in accum_object.addrs],
+                 ["0x%08x" % (insn,) for insn in insn_slice],
+                 decode,
+                 ))
 
 class InstructionDecoder:
     """Given a 4-byte uint32_t ARM64 instruction,
@@ -81,10 +117,22 @@ class InstructionDecoder:
     def __init__(self):
         self.capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         self.insn_value_to_decode = {}
+
     def dump(self):
         """Print out the cache."""
         # print(self.insn_value_to_decode)
         print("%d instructions in the decode cache" % (len(self.insn_value_to_decode),))
+
+    def decode_to_str(self, phys_addr, insn_value):
+        """decode the instruction to a printable string."""
+        decoded = self.decode(phys_addr, insn_value)
+        if decoded is None:
+            return "??"
+        if len(decoded) == 1:
+            return decoded[0]
+        else:
+            return "%s %s" % (decoded[0], decoded[1],)
+
     def decode(self, phys_addr, insn_value):
         """Returns None if insn_value isn't decodable.
         Otherwise returns a list of length 1 or 2,
@@ -103,15 +151,16 @@ class InstructionDecoder:
             return None
         self.insn_value_to_decode[insn_value] = decode_value
         return decode_value
+
     def is_instruction(self, phys_addr, insn_value):
         """Return True if this decodes as a valid instruction."""
         return self.decode(phys_addr, insn_value) is not None
 
-def consume_csv_file_analyze(input_fd):
+def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
     """Read a csv file, doing analysis."""
     do_print = False
-    # run_analyzer = InsnRunAnalyzer(5, 16)
-    run_analyzer = InsnRunAnalyzer(5, 6)
+    do_skip_pid0 = True
+    run_analyzer = InsnRunAnalyzer(lg_lb, lg_ub)
     decoder = InstructionDecoder()
 
     reader = csv.DictReader(input_fd, fieldnames=FIELD_NAMES)
@@ -119,38 +168,48 @@ def consume_csv_file_analyze(input_fd):
     # Read all rows, and store internally,
     # so we can display the image with NWAYS ways going left to right.
     #
-    contents = {}  # indexed by phys_addr
+    addr_to_insns = {}  # indexed by phys_addr
     addr_to_pid = {}
     for row in reader:
         phys_addr = int(row["phys_addr"], 16)
         pid = int(row["pid"])
         insns = [int(row["d_%02d" % (i,)], 16) for i in range(0, 16)]
-        contents[phys_addr] = insns
+        if do_skip_pid0 and pid == 0:
+            continue
+        addr_to_insns[phys_addr] = insns
         addr_to_pid[phys_addr] = pid
 
+    #
+    # Concatenate lines together if their phys addrs are adjacent.
+    #
     new_contents = {}
     new_addr_to_pid = {}
     last_phys_addr = -1
-    for phys_addr in sorted(contents.keys()):
-        if (last_phys_addr in contents) and \
+    for phys_addr in sorted(addr_to_insns.keys()):
+        if (last_phys_addr in addr_to_insns) and \
                 (phys_addr == (last_phys_addr + 4 * len(new_contents[last_phys_addr]))):
-            new_contents[last_phys_addr] = new_contents[last_phys_addr] + contents[phys_addr]
+            new_contents[last_phys_addr] = new_contents[last_phys_addr] + addr_to_insns[phys_addr]
             assert new_addr_to_pid[last_phys_addr] == addr_to_pid[phys_addr]
         else:
             last_phys_addr = phys_addr
-            new_contents[last_phys_addr] = contents[phys_addr]
+            new_contents[last_phys_addr] = addr_to_insns[phys_addr]
             new_addr_to_pid[last_phys_addr] = addr_to_pid[phys_addr]
+
     for phys_addr in sorted(new_contents.keys()):
         if do_print:
             print("0x%016x: %4d" % (phys_addr, len(new_contents[phys_addr]),))
         total_decoded = 0
         byte_delta = 0
-        for content in new_contents[phys_addr]:
-            if decoder.is_instruction(phys_addr + byte_delta, content):
+        for insn in new_contents[phys_addr]:
+            if decoder.is_instruction(phys_addr + byte_delta, insn):
                 total_decoded += 1
             byte_delta += 4
         if total_decoded == len(new_contents[phys_addr]):
-            run_analyzer.analyze_insn_run(phys_addr, new_contents[phys_addr])
+            run_analyzer.analyze_insn_run(
+                new_addr_to_pid[phys_addr],
+                phys_addr,
+                new_contents[phys_addr],
+                decoder)
     run_analyzer.dump(decoder)
     decoder.dump()
 
@@ -158,13 +217,23 @@ def analyze_cache_contents():
     """Analyze cache contents."""
     parser = argparse.ArgumentParser("analyze cache contents")
     parser.add_argument(
+        "--lb",
+        help="lower bound on length of common runs",
+        type=int,
+        default=6,)
+    parser.add_argument(
+        "--ub",
+        help="upper bound on length of common runs",
+        type=int,
+        default=30,)
+    parser.add_argument(
         "rest",
         nargs=argparse.REMAINDER,)
     args = parser.parse_args()
     for input_file_name in args.rest:
         print("Reading %s" % (input_file_name,))
         with open(input_file_name, "r") as input_fd:
-            consume_csv_file_analyze(input_fd)
+            consume_csv_file_analyze(input_fd, args.lb, args.ub)
 
 if __name__ == "__main__":
     analyze_cache_contents()

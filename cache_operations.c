@@ -246,9 +246,12 @@ void print_Cortex_L2_Unif(FILE *outfp,
         for (set = 0; set < Cortex_L2_NROW; set++) {
             const struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
             //
-            // check that the post conditions expectewd the e11_flood.c are met:
+            // Check that the post conditions expected the e11_flood.c are met.
             // Check that pid determined by the kernel from the phys address
             // is identical to the pid embedded in the instruction stream.
+            //
+            // This only makes sense when looking for telltale
+            // signaturres from e11_flood.c
             //
             int fail_brand = 0;
             int fail_pid = 0;
