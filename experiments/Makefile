@@ -23,12 +23,13 @@ PERIOD = 50
 .PHONY: run
 VICTIM = e10_benchmark.x
 VICTIM = e11_flood.x
+VICTIM = e11_sleep.x
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
 	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data $(PWD)/$(VICTIM)
 	sudo chown $(USER):$(USER) data/*
 
-e11_flood.x: e11_flood.c
+# e11_flood.x: e11_flood.c
 
 data:
 	mkdir -p $@
