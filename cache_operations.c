@@ -209,12 +209,16 @@ static int fill_Cortex_L2_Unif(void) {
 
 #ifdef DO_PRINT  // {
 
+#include <set>
+
 void print_Cortex_L1_Insn(FILE *outfp,
-      const struct Cortex_L1_I_Insn_Cache *cache) {
+      const struct Cortex_L1_I_Insn_Cache *cache,
+      std::set<pid_t> *pidset) {
     uint32_t way, set, pair;
     for (way = 0; way < 3; way++) {
         for (set = 0; set < 256; set++) {
             const struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
+            pidset->insert(p->tag.pid);
             fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
                 way, set,
                 p->tag.pid, p->tag.pid,
@@ -236,7 +240,8 @@ void print_Cortex_L1_Insn(FILE *outfp,
 }
 
 void print_Cortex_L2_Unif(FILE *outfp,
-      const struct Cortex_L2_Unif_Cache *cache) {
+      const struct Cortex_L2_Unif_Cache *cache,
+      std::set<pid_t> *pidset) {
     size_t L2_size =
         sizeof(struct Cortex_L2_Unif_Cache)
       - Cortex_L2_NWAY * Cortex_L2_NROW * sizeof(struct Cortex_L2_Unif_Tag);
@@ -245,8 +250,9 @@ void print_Cortex_L2_Unif(FILE *outfp,
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         for (set = 0; set < Cortex_L2_NROW; set++) {
             const struct Cortex_L2_Unif_Bank *p = &cache->way[way].set[set];
+            pidset->insert(p->tag.pid);
             //
-            // Check that the post conditions expected the e11_flood.c are met.
+            // Check that the post conditions expected by e11_flood.c are met.
             // Check that pid determined by the kernel from the phys address
             // is identical to the pid embedded in the instruction stream.
             //
@@ -255,11 +261,13 @@ void print_Cortex_L2_Unif(FILE *outfp,
             //
             int fail_brand = 0;
             int fail_pid = 0;
-            int q;
-            for (q = 0; q < 4; q++) {
-              fail_brand += (p->quad[q].instruction[0] != 0x14000004);
-              fail_brand += (p->quad[q].instruction[1] != 0xffffffff);
-              fail_pid +=   (p->quad[q].instruction[2] != p->tag.pid);
+            if (0) {
+              int q;
+              for (q = 0; q < 4; q++) {
+                fail_brand += (p->quad[q].instruction[0] != 0x14000004);
+                fail_brand += (p->quad[q].instruction[1] != 0xffffffff);
+                fail_pid +=   ((pid_t)(p->quad[q].instruction[2]) != p->tag.pid);
+              }
             }
             fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x,0x%016lx ",
                 fail_brand ? 'B' : '-',
