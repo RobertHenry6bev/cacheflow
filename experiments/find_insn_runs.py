@@ -40,6 +40,8 @@ class RunCountAccumulator:
         self.pids = []
         self.addrs = []
 
+    def __str__(self):
+        return "{%d, %s, %s}" % (self.count, self.pids, ["0x%016x" % (x,) for x in self.addrs],)
     def incr(self, _key, pid, addr):
         """Increment ourselves"""
         self.count += 1
@@ -104,23 +106,41 @@ class InsnRunAnalyzer:
 
     def prune(self, decoder):
         """Prune away small matches implied by larger matches."""
+        rangekill = set()
+        for insn_slice, accum in sorted(self.runcount.items(),
+                reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
+            if accum.count <= 1:
+                continue
+            nuniques = 0
+            for i in range(0, accum.count):
+                phys_addr = accum.addrs[i]
+                span = set(range(phys_addr, phys_addr + 4 * len(insn_slice)))
+                if len(rangekill & span):
+                    continue
+                rangekill.update(span)
+                nuniques += 1
+            if nuniques == accum.count:
+                print("prune survive %s %s" % (insn_slice, accum,))
+
+    def prune0(self, decoder):
+        """Prune away small matches implied by larger matches."""
         nslices = 0
-        for insn_slice, accum_object in sorted(self.runcount.items(),
+        for insn_slice, accum in sorted(self.runcount.items(),
                 reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
             nslices += 1
-            if accum_object.count <= 0:
+            if accum.count <= 0:
                 continue
             insns = list(insn_slice)
             print("start prune with %s" % (insns,))
-            for i in range(0, len(accum_object.pids)):
+            for i in range(0, len(accum.pids)):
                 print("count=%d i=%d pid=%d addr=0x%016x" % (
-                    accum_object.count,
+                    accum.count,
                     i,
-                    accum_object.pids[i],
-                    accum_object.addrs[i],))
+                    accum.pids[i],
+                    accum.addrs[i],))
                 self._process_insn_run(
-                    accum_object.pids[i],
-                    accum_object.addrs[i],
+                    accum.pids[i],
+                    accum.addrs[i],
                     insns,
                     decoder,
                     self.lg_lb, len(insn_slice)-1,
@@ -132,13 +152,24 @@ class InsnRunAnalyzer:
     def dump(self, decoder):
         """Dump out the instruction runs."""
         last_len = 0
+        rangekill = set()
         # sort by descending length of run
-        for insn_slice, accum_object in sorted(self.runcount.items(),
+        for insn_slice, accum in sorted(self.runcount.items(),
                 reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
             if last_len != len(insn_slice):
                 last_len = len(insn_slice)
                 print("")
-            if accum_object.count <= 1:
+            if accum.count <= 1:
+                continue
+            nuniques = 0
+            for i in range(0, accum.count):
+                phys_addr = accum.addrs[i]
+                span = set(range(phys_addr, phys_addr + 4 * len(insn_slice)))
+                if len(rangekill & span):
+                    continue
+                rangekill.update(span)
+                nuniques += 1
+            if nuniques != accum.count:
                 continue
             decode = ""
             sep = ""
@@ -151,10 +182,10 @@ class InsnRunAnalyzer:
                         decode += "%s%s" % (sep, decoded_value[0],)
                     sep = "; "
             print("%8d lg=%d pids=%s addrs=%s insns=%s %s" % (
-                 accum_object.count,
+                 accum.count,
                  len(insn_slice),
-                 accum_object.pids,
-                 ["0x%016x" % (addr,) for addr in accum_object.addrs],
+                 accum.pids,
+                 ["0x%016x" % (addr,) for addr in accum.addrs],
                  ["0x%08x" % (insn,) for insn in insn_slice],
                  decode,
                  ))
@@ -260,7 +291,7 @@ def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
                 phys_addr,
                 new_contents[phys_addr],
                 decoder)
-    run_analyzer.prune(decoder)
+    # run_analyzer.prune(decoder)
     run_analyzer.dump(decoder)
     decoder.dump()
 
