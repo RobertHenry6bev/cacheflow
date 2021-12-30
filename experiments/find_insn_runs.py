@@ -5,7 +5,11 @@ Analyze data held in cache looking for long runs of instructions
 that span many 16-instruction wide cache lines.
 """
 
+# pylint: disable=consider-using-enumerate
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-branches
 # pylint: disable=too-many-locals
+# pylint: disable=no-self-use
 
 import argparse
 import csv
@@ -50,7 +54,8 @@ class RunCountAccumulator:
 
     def decr(self, key, pid, addr):
         """Decrement ourselves.  I never got this to work; historical only"""
-        print("decr key=%s pid=%d addr=0x%016x count=%d len=%d" % (key, pid, addr, self.count, len(self.pids),))
+        print("decr key=%s pid=%d addr=0x%016x count=%d len=%d" % (
+            key, pid, addr, self.count, len(self.pids),))
         assert len(self.pids) == len(self.addrs)
         assert len(self.pids) == self.count
         if self.count > 0:
@@ -60,7 +65,7 @@ class RunCountAccumulator:
                     self.pids.pop(i)
                     self.addrs.pop(i)
                     return
-            print("decr did not find pid %d and addr 0x%016x" % (pid, addr,))  # TODO: make assert
+            print("decr did not find pid %d and addr 0x%016x" % (pid, addr,))
 
 class InsnRunAnalyzer:
     """Look for instruction runs of length between lg_lb and lg_ub.
@@ -87,11 +92,12 @@ class InsnRunAnalyzer:
 
     def analyze_insn_run(self, pid, phys_addr, insns, decoder):
         """popcount runs of instructions of various lengths"""
-        if False:
+        do_debug = False
+        if do_debug:
             self.print_insn_run(pid, phys_addr, insns, decoder)
         self._process_insn_run(pid, phys_addr, insns, decoder, self.lg_lb, self.lg_ub, True)
 
-    def _process_insn_run(self, pid, phys_addr, insns, decoder, xlg_lb, xlg_ub, incr):
+    def _process_insn_run(self, pid, phys_addr, insns, _decoder, xlg_lb, xlg_ub, incr):
         """Private helper function to create all O(N**2) sublists length < N."""
         ninsns = len(insns)
         for run_lg in range(xlg_lb, xlg_ub+1):
@@ -152,7 +158,8 @@ class InsnRunAnalyzer:
                     for j in range(0, len(accum.addrs)):
                         phys_addr = accum.addrs[j] + i * 4
                         print("0x%016x " % (phys_addr,), end="")
-                    print("0x%08x %s" % (insn_slice[i], decoder.decode_to_str(phys_addr, insn_slice[i]),))
+                    print("0x%08x %s" % (
+                        insn_slice[i], decoder.decode_to_str(phys_addr, insn_slice[i]),))
                 print("")
 
 class InstructionDecoder:
@@ -176,8 +183,7 @@ class InstructionDecoder:
             return "??"
         if len(decoded) == 1:
             return decoded[0]
-        else:
-            return "%s %s" % (decoded[0], decoded[1],)
+        return "%s %s" % (decoded[0], decoded[1],)
 
     def decode(self, phys_addr, insn_value):
         """Returns None if insn_value isn't decodable.

@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 2021 Renato Mancuso et. al.
  */
-/*************************************************************/
-/*                                                           */
-/*  Unified code to launch benchmarks with periodic          */
-/*  snap shotting. This code was initially written by:        */
-/*  Steven Brzozowski (BU)                                   */
-/*  Major rev. by: Dharmesh Tarapore (BU)                    */
-/*  Major rev. by: Renato Mancuso (BU)                       */
-/*                                                           */
-/*  Date: April 2020                                         */
-/*                                                           */
-/*************************************************************/
+//
+//  Unified code to launch benchmarks with periodic
+//  snap shots taken. This code was initially written by:
+//  Steven Brzozowski (BU)
+//  Major rev. by: Dharmesh Tarapore (BU)
+//  Major rev. by: Renato Mancuso (BU)
+//
+//  Date: April 2020
+//
+// Extensively hacked on by robhenry@microsoft.com
+//
 
 #define _GNU_SOURCE
 
@@ -42,7 +42,7 @@
     "\n" \
     "-f\t" "Force output. Overwrite content of output directory.\n" \
     "\n" \
-    "-i\t" "Isolation mode. Pin parent alone on CPU "STR(PARENT_CPU)".\n" \
+    "-i\t" "Isolation mode. Pin parent alone on CPU " STR(PARENT_CPU) ".\n" \
     "\n" \
     "-o\t" "Output files to custom directory instead of " \
         SCRATCHSPACE_DIR ".\n" \
@@ -123,54 +123,47 @@ void wrap_up(void);
 
 int observation = DUMPCACHE_DO_L2;
 
-int main(int argc, char ** argv) {
+int main(int argc, const char **argv) {
     int opt, res;
     struct stat dir_stat;
 
     while ((opt = getopt(argc, argv, "-rmafio:p:ntlh12")) != -1) {
         switch (opt) {
-        case 1:
-        {
-                /* Benchmark to run parameter */
-                bms[bm_count++] = argv[optind - 1];
-                break;
+        case 1: {
+            /* Benchmark to run parameter */
+            bms[bm_count++] = argv[optind - 1];
+            break;
         }
 
-        case '1':
-        {
+        case '1': {
            observation = DUMPCACHE_DO_L1;
            break;
         }
 
-        case '2':
-        {
+        case '2': {
            observation = DUMPCACHE_DO_L2;
            break;
         }
 
-        case 'r':
-        {
-                /* RT scheduler requested */
-                flag_rt = 1;
-                break;
+        case 'r': {
+            /* RT scheduler requested */
+            flag_rt = 1;
+            break;
         }
 
-        case 'a':
-        {
-                /* Asynchronous requested */
-                flag_async = 1;
-                break;
+        case 'a': {
+            /* Asynchronous requested */
+            flag_async = 1;
+            break;
         }
 
-        case 'm':
-        {
-                /* Mimic only --- no cache dumps performed */
-                flag_mimic = 1;
-                break;
+        case 'm': {
+            /* Mimic only --- no cache dumps performed */
+            flag_mimic = 1;
+            break;
         }
 
-        case 'i':
-        {
+        case 'i': {
                 /* Isolate: make sure child processes are not
                  * allowed to run on the same CPU as the
                  * parent */
@@ -178,15 +171,13 @@ int main(int argc, char ** argv) {
                 break;
         }
 
-        case 'f':
-        {
+        case 'f': {
                 /* Override content of outdir !!! CAREFUL */
                 flag_force = 1;
                 break;
         }
 
-        case 'p':
-        {
+        case 'p': {
                 /* Set custom sampling period in ms */
                 snap_period_ms = strtol(optarg, NULL, 10);
 
@@ -197,30 +188,26 @@ int main(int argc, char ** argv) {
                 break;
         }
 
-        case 'n':
-        {
+        case 'n': {
                 /* Disable address resolution in the kernel  */
                 flag_resolve = 0;
                 break;
         }
 
-        case 't':
-        {
+        case 't': {
                 /* Request transparent snapshotting */
                 flag_transparent = 1;
                 break;
         }
 
-        case 'l':
-        {
+        case 'l': {
                 /* Do not acquire applications layout files
                  * with snapshots */
                 flag_bm_layout = 0;
                 break;
         }
 
-        case 'h':
-        {
+        case 'h': {
                 /* Operate in overhead calculation mode. In
                  * this mode, the scnapshot will be activated
                  * in one-shot mode after the amount of time
@@ -230,8 +217,7 @@ int main(int argc, char ** argv) {
                 break;
         }
 
-        case 'o':
-        {
+        case 'o': {
                 /* Custom output dir requested */
                 int path_len = strlen(optarg);
                 outdir = (char *)malloc(path_len+1);
@@ -240,8 +226,7 @@ int main(int argc, char ** argv) {
                 break;
         }
 
-        default:
-        {
+        default: {
                 /* '?' */
                 fprintf(stderr, USAGE_STR, argv[0]);
                 exit(EXIT_FAILURE);
@@ -358,20 +343,20 @@ void launch_benchmarks(void) {
         /* Launch all the benchmarks one by one */
         pid_t cpid = fork();
         if (cpid == -1) {
-                perror("fork");
-                exit(EXIT_FAILURE);
+            perror("fork");
+            exit(EXIT_FAILURE);
         }
         /* Child process */
         if (cpid == 0) {
-            /* Assume that there is only at most one paramer */
-            char * args[3];
+            /* Assume that there is only at most one parameter */
+            char *args[3];
 
             /* To follow execv's convention*/
             args[2] = NULL;
             args[0] = bms[i];
             if ((args[1] = strchr(bms[i], ' '))) {
-                    *args[1] = '\0';
-                    args[1]++;
+                *args[1] = '\0';
+                args[1]++;
             }
             /* Set SCHED_FIFO priority if necessary */
             if (flag_rt) {
@@ -397,7 +382,7 @@ void launch_benchmarks(void) {
 }
 
 /* Handler for SIGCHLD signal to detect benchmark termination */
-/* 
+/*
  * Adapted from
  * https://docs.oracle.com/cd/E19455-01/806-4750/signals-7/index.html
  */
