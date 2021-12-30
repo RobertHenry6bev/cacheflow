@@ -13,7 +13,9 @@
 // Extensively hacked on by robhenry@microsoft.com
 //
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #include <assert.h>
 #include <limits.h>
@@ -75,7 +77,7 @@ int flag_periodic = 1;
 /* Default sampling period is 5 ms */
 long int snap_period_ms = SNAP_PERIOD_MS;
 
-char * outdir = SCRATCHSPACE_DIR;
+char *outdir;
 
 int bm_count = 0;
 int running_bms;
@@ -123,9 +125,11 @@ void wrap_up(void);
 
 int observation = DUMPCACHE_DO_L2;
 
-int main(int argc, const char **argv) {
+int main(int argc, char **argv) {
     int opt, res;
     struct stat dir_stat;
+
+    outdir = strdup((const char *)SCRATCHSPACE_DIR);
 
     while ((opt = getopt(argc, argv, "-rmafio:p:ntlh12")) != -1) {
         switch (opt) {
@@ -419,13 +423,13 @@ void proc_exit_handler(int signo, siginfo_t * info, void * extra) {
 
 /* Copy content of file from src to dst */
 #define BUF_SIZE (1024)
-void copy_file(char * src, char * dst) {
+void copy_file(const char *src, const char *dst) {
     static char buf[BUF_SIZE];
     int src_fd = open(src, O_RDONLY);
     ssize_t num_read;
 
     if (src_fd < 0) {
-            return;
+        return;
     }
 
     int dst_fd = open(dst, O_RDWR | O_CREAT | O_TRUNC, 0666);
@@ -436,10 +440,10 @@ void copy_file(char * src, char * dst) {
     }
 
     while ((num_read = read(src_fd, buf, BUF_SIZE)) > 0) {
-            if (write(dst_fd, buf, num_read) != num_read) {
-                    perror("Unable to write maps file.");
-                    exit(EXIT_FAILURE);
-            }
+        if (write(dst_fd, buf, num_read) != num_read) {
+            perror("Unable to write maps file.");
+            exit(EXIT_FAILURE);
+        }
     }
 
     close(src_fd);
@@ -469,12 +473,13 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
     static char * __cmd = NULL;
     static char __proc_entry[MALLOC_CMD_PAD];
 
-    static struct itimerspec it = {
+    static struct itimerspec it; /* = {
+        // I couldn't get c++ designated initializers to work
         .it_value.tv_sec = 0,
         .it_value.tv_nsec = 0,
         .it_interval.tv_sec = 0,
-        .it_interval.tv_nsec = 0, /* One shot mode */
-    };
+        .it_interval.tv_nsec = 0,
+    }; */
 
     timer_t timer = *((timer_t *)(info->si_value.sival_ptr));
     int i;
@@ -824,6 +829,8 @@ void wait_completion(void) {
 #define DO_PRINT
 #include "../cache_operations.c"  // NOLINT
 
+std::set<pid_t> seen_pidset;
+
 /* Entry function to interface with the kernel module via the proc interface */
 void read_cache_to_file(const char *filename, int index) {
     int dumpcache_fd;
@@ -862,13 +869,29 @@ void read_cache_to_file(const char *filename, int index) {
           exit(EXIT_FAILURE);
     }
 
+    std::set<pid_t> pidset;
     if (observation == DUMPCACHE_DO_L1) {
         print_Cortex_L1_Insn(outfp,
-            (const struct Cortex_L1_I_Insn_Cache *)cache_contents);
+            (const struct Cortex_L1_I_Insn_Cache *)cache_contents,
+            &pidset);
     } else if (observation == DUMPCACHE_DO_L2) {
         print_Cortex_L2_Unif(outfp,
-            (const struct Cortex_L2_Unif_Cache *)cache_contents);
+            (const struct Cortex_L2_Unif_Cache *)cache_contents,
+            &pidset);
     }
     fclose(outfp);
     close(dumpcache_fd);
+
+    for (pid_t pid : pidset) {
+      if (!seen_pidset.contains(pid)) {
+          seen_pidset.insert(pid);
+          if (pid != 0) {
+            char src_name[BUFSIZ];
+            char dst_name[BUFSIZ];
+            snprintf(dst_name, sizeof(dst_name), "%s/%d.cmdline.txt", outdir, pid);
+            snprintf(src_name, sizeof(src_name), "/proc/%d/cmdline", pid);
+            copy_file(src_name, dst_name);
+          }
+      }
+    }
 }

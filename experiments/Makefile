@@ -22,11 +22,17 @@ PERIOD = 500
 PERIOD = 50
 .PHONY: run
 VICTIM = e10_benchmark.x
+VICTIM_ARG =
+
 VICTIM = e11_flood.x
+VICTIM_ARG =
+
 VICTIM = e11_sleep.x
+VICTIM_ARG = 1
+
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data $(PWD)/$(VICTIM)
+	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
 	sudo chown $(USER):$(USER) data/*
 
 # e11_flood.x: e11_flood.c
@@ -37,10 +43,10 @@ data:
 CFLAGS = -O2 -g -Wall
 
 snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
-	gcc $(CFLAGS) -o $@ $< -lrt
+	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt
 
 %.x: %.c Makefile
-	gcc $(CFLAGS) -o $@ $< -lrt -lpthread
+	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread
 
 %.objdump: %.x
 	objdump --disassemble $< > $@
@@ -106,6 +112,13 @@ pylint: /usr/bin/pylint *.py
 	/usr/bin/pylint *.py
 /usr/bin/pylint:
 	sudo apt-get install pylint3
+
+CPPLINT_ARGS = \
+  --filter=-runtime/int,-readability/casting,-runtime/printf \
+  $(NULL)
+CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
+lint: $(CPPLINT) *.c *.h
+	python3 $(CPPLINT) $(CPPLINT_ARGS) *.c *.h
 
 workingsets.csv: analyze_processes.py data/*.csv
 	python3 analyze_processes.py data/*.csv > $@
