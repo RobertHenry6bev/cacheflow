@@ -1,7 +1,8 @@
 #! /usr/bin/python3
 
 """
-Analyze csv files and extract working set sizes of all of the processes
+Analyze experiments/data/cachedump*.csv files and extract working set sizes of all of the processes.
+Extract other information
 """
 
 import argparse
