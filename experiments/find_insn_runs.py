@@ -5,6 +5,8 @@ Analyze data held in cache looking for long runs of instructions
 that span many 16-instruction wide cache lines.
 """
 
+# pylint: disable=too-many-locals
+
 import argparse
 import csv
 
@@ -37,20 +39,23 @@ class InsnRunAnalyzer:
         self.lg_lb = lg_lb
         self.lg_ub = lg_ub
         self.runcount = {}
-    def analyze_insn_run(self, phys_addr, insns):
+    def analyze_insn_run(self, _phys_addr, insns):
         """popcount runs of instructions of various lengths"""
         ninsns = len(insns)
-        for lg in range(self.lg_lb, self.lg_ub+1):
-            for i in range(0, ninsns - lg):
-                insn_slice = tuple(insns[i:i+lg])
+        for run_lg in range(self.lg_lb, self.lg_ub+1):
+            for i in range(0, ninsns - run_lg):
+                insn_slice = tuple(insns[i:i+run_lg])
                 if insn_slice not in self.runcount:
                     self.runcount[insn_slice] = 0
                 self.runcount[insn_slice] += 1
     def dump(self, decoder):
         """Dump out the instruction runs."""
         last_len = 0
-        # for insn_slice, count in sorted(self.runcount.items(), reverse=True, key=lambda x:x[1]):      # by descending count
-        for insn_slice, count in sorted(self.runcount.items(), reverse=True, key=lambda x: len(x[0])):  # by descending length of run
+        # by descending count
+        # for insn_slice, count in sorted(self.runcount.items(), reverse=True, key=lambda x:x[1]):
+        # by descending length of run
+        for insn_slice, count in sorted(self.runcount.items(),
+                reverse=True, key=lambda x: len(x[0])):
             if last_len != len(insn_slice):
                 last_len = len(insn_slice)
                 print("")
@@ -74,7 +79,7 @@ class InstructionDecoder:
     Cache the results, as Capstone takes a long time.
     """
     def __init__(self):
-        self.md = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
+        self.capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         self.insn_value_to_decode = {}
     def dump(self):
         """Print out the cache."""
@@ -89,17 +94,17 @@ class InstructionDecoder:
             return self.insn_value_to_decode[insn_value]
         ndecoded = 0
         decode_value = None
-        for insn in self.md.disasm(insn_value.to_bytes(4, "little"), phys_addr):
+        for insn in self.capstone_engine.disasm(insn_value.to_bytes(4, "little"), phys_addr):
             decode_value = [insn.mnemonic, insn.op_str]
             ndecoded += 1
         assert 0 <= ndecoded <= 1
         if ndecoded == 0:
             self.insn_value_to_decode[insn_value] = None
             return None
-            return False
         self.insn_value_to_decode[insn_value] = decode_value
         return decode_value
     def is_instruction(self, phys_addr, insn_value):
+        """Return True if this decodes as a valid instruction."""
         return self.decode(phys_addr, insn_value) is not None
 
 def consume_csv_file_analyze(input_fd):

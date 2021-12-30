@@ -1,15 +1,23 @@
 #! /usr/bin/python3
 
 """
-Analyze experiments/data/cachedump*.csv files and extract working set sizes of all of the processes.
-Extract other information
+Analyze experiments/data/cachedump*.csv files and extract working set
+sizes of all of the processes. Extract other information, such as
+longest prefix
+
+This is probably close to a one-off.
+
 """
+
+# pylint: disable=too-many-locals
 
 import argparse
 import csv
 import re
 
 import capstone
+
+DEBUG = True
 
 IS_L2 = True
 if IS_L2:
@@ -39,7 +47,10 @@ class PidInfo:
         self.pid = pid
         self.code_rows = 0
         self.data_rows = 0
-    def fieldnames():
+    @classmethod
+    def fieldnames(cls):
+        """Return a CSV header snippet."""
+        _ = cls
         return "timestamp,pid,code,data"
     def __str__(self):
         return "%8d, %7d, %5d, %5d" % (self.timestep, self.pid, self.code_rows, self.data_rows,)
@@ -58,7 +69,7 @@ def analyze_processes():
         with open(input_file_name, "r") as input_fd:
             try:
                 analyze_processes_file(input_file_name, input_fd)
-            except TypeError as our_error:
+            except TypeError:
                 pass
 
 RE_FILENAME = re.compile(r'[^0-9]+([0-9]+)\.csv')
@@ -80,16 +91,17 @@ def analyze_processes_file(input_file_name, input_fd):
         phys_addr = int(row["phys_addr"], 16)
         insns = [int(row["d_%02d" % (i,)], 16) for i in range(0, 16)]
 
-        md = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
+        capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         byte_delta = 0
         ndecoded = 0
         decoded_insns = []
         for content in insns:
-            for insn in md.disasm(content.to_bytes(4, 'little'), phys_addr + byte_delta):
+            for insn in capstone_engine.disasm(
+                    content.to_bytes(4, 'little'), phys_addr + byte_delta):
                 ndecoded += 1
                 decoded_insns.append("%s\t%s" % (insn.mnemonic, insn.op_str,))
             byte_delta += 4
-        if False:
+        if DEBUG:
             print("Address 0x%016x has %2d instructions: %s" % (phys_addr, ndecoded, insns,))
             if ndecoded == 16:
                 for decoded_insn in decoded_insns:

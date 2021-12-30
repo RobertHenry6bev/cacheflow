@@ -1,16 +1,17 @@
 #! /usr/bin/python3
-"""Analyze and plot table of workingsets from workingsets.csv
-as made by
+"""Analyze and plot table of workingsets from file workingsets.csv
+as made by the Makefile:
    python3 analyze_processes.py data/*.csv > workingsets.csv
 
 """
-
-import argparse
 import csv
-import re
+
 import matplotlib.pyplot as plt
 
 def analyze_workingsets_csv():
+    """Read from a csv file made by slowly analyzing all data/*.csv files,
+    and determine the cache working set of each pid
+    at each point in time."""
     output_file_name = "workingsets.png"
     input_file_name = "workingsets.csv"
     pidset = set([
@@ -32,7 +33,6 @@ def analyze_workingsets_csv():
 
     timestamps = set()
     pid_to_timestamp_map = {}
-    xitems = []
     with open(input_file_name, "r") as input_fd:
         reader = csv.DictReader(input_fd)
         for row in reader:
@@ -40,8 +40,10 @@ def analyze_workingsets_csv():
             if pid not in pid_to_timestamp_map:
                 pid_to_timestamp_map[pid] = {}
             timestamp = int(row["timestamp"])
-            if False and (timestamp < 125 or timestamp > 135):
-                continue
+            #
+            # if (timestamp < 125 or timestamp > 135):
+            #   continue
+            #
             timestamps.add(timestamp)
             if pid in pidset:
                 pid_to_timestamp_map[pid][timestamp] = {
@@ -57,7 +59,7 @@ def analyze_workingsets_csv():
                     value = pid_to_timestamp_map[pid][timestamp][kind]
                 except KeyError:
                     value = float("NaN")
-                    print("missing: pid %d timestamp %d kind %d" % (
+                    print("missing: pid %d timestamp %d kind %s" % (
                         pid, timestamp, kind,))
                 datavals.append(value)
             plt.plot(timestamps, datavals,
