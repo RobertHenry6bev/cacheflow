@@ -49,7 +49,7 @@ class RunCountAccumulator:
         self.addrs.append(addr)
 
     def decr(self, key, pid, addr):
-        """Decrement ourselves"""
+        """Decrement ourselves.  I never got this to work; historical only"""
         print("decr key=%s pid=%d addr=0x%016x count=%d len=%d" % (key, pid, addr, self.count, len(self.pids),))
         assert len(self.pids) == len(self.addrs)
         assert len(self.pids) == self.count
@@ -104,51 +104,6 @@ class InsnRunAnalyzer:
                 else:
                     self.runcount[insn_slice].decr(insn_slice, pid, phys_addr + i * 4)
 
-    def prune(self, decoder):
-        """Prune away small matches implied by larger matches."""
-        rangekill = set()
-        for insn_slice, accum in sorted(self.runcount.items(),
-                reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
-            if accum.count <= 1:
-                continue
-            nuniques = 0
-            for i in range(0, accum.count):
-                phys_addr = accum.addrs[i]
-                span = set(range(phys_addr, phys_addr + 4 * len(insn_slice)))
-                if len(rangekill & span):
-                    continue
-                rangekill.update(span)
-                nuniques += 1
-            if nuniques == accum.count:
-                print("prune survive %s %s" % (insn_slice, accum,))
-
-    def prune0(self, decoder):
-        """Prune away small matches implied by larger matches."""
-        nslices = 0
-        for insn_slice, accum in sorted(self.runcount.items(),
-                reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
-            nslices += 1
-            if accum.count <= 0:
-                continue
-            insns = list(insn_slice)
-            print("start prune with %s" % (insns,))
-            for i in range(0, len(accum.pids)):
-                print("count=%d i=%d pid=%d addr=0x%016x" % (
-                    accum.count,
-                    i,
-                    accum.pids[i],
-                    accum.addrs[i],))
-                self._process_insn_run(
-                    accum.pids[i],
-                    accum.addrs[i],
-                    insns,
-                    decoder,
-                    self.lg_lb, len(insn_slice)-1,
-                    False)
-            if nslices > 10:
-                print("stop prune after examine %d slices." % (nslices,))
-                break
-
     def dump(self, decoder):
         """Dump out the instruction runs."""
         last_len = 0
@@ -171,24 +126,34 @@ class InsnRunAnalyzer:
                 nuniques += 1
             if nuniques != accum.count:
                 continue
-            decode = ""
-            sep = ""
-            for insn in insn_slice:
-                decoded_value = decoder.decode(0x0, insn)
-                if decoded_value:
-                    if len(decoded_value) == 2:
-                        decode += "%s%s %s" % (sep, decoded_value[0], decoded_value[1],)
-                    else:
-                        decode += "%s%s" % (sep, decoded_value[0],)
-                    sep = "; "
-            print("%8d lg=%d pids=%s addrs=%s insns=%s %s" % (
-                 accum.count,
-                 len(insn_slice),
-                 accum.pids,
-                 ["0x%016x" % (addr,) for addr in accum.addrs],
-                 ["0x%08x" % (insn,) for insn in insn_slice],
-                 decode,
-                 ))
+
+            do_single_line = False
+            if do_single_line:
+                decode = ""
+                sep = ""
+                for insn in insn_slice:
+                    decoded_value = decoder.decode(0x0, insn)
+                    if decoded_value:
+                        if len(decoded_value) == 2:
+                            decode += "%s%s %s" % (sep, decoded_value[0], decoded_value[1],)
+                        else:
+                            decode += "%s%s" % (sep, decoded_value[0],)
+                        sep = "; "
+                print("%8d lg=%d pids=%s addrs=%s insns=%s %s" % (
+                     accum.count,
+                     len(insn_slice),
+                     accum.pids,
+                     ["0x%016x" % (addr,) for addr in accum.addrs],
+                     ["0x%08x" % (insn,) for insn in insn_slice],
+                     decode,
+                     ))
+            else:
+                for i in range(0, len(insn_slice)):
+                    for j in range(0, len(accum.addrs)):
+                        phys_addr = accum.addrs[j] + i * 4
+                        print("0x%016x " % (phys_addr,), end="")
+                    print("0x%08x %s" % (insn_slice[i], decoder.decode_to_str(phys_addr, insn_slice[i]),))
+                print("")
 
 class InstructionDecoder:
     """Given a 4-byte uint32_t ARM64 instruction,
@@ -291,7 +256,6 @@ def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
                 phys_addr,
                 new_contents[phys_addr],
                 decoder)
-    # run_analyzer.prune(decoder)
     run_analyzer.dump(decoder)
     decoder.dump()
 
