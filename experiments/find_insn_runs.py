@@ -39,11 +39,26 @@ class RunCountAccumulator:
         self.count = 0
         self.pids = []
         self.addrs = []
-    def incr(self, pid, addr):
+
+    def incr(self, _key, pid, addr):
         """Increment ourselves"""
         self.count += 1
         self.pids.append(pid)
         self.addrs.append(addr)
+
+    def decr(self, key, pid, addr):
+        """Decrement ourselves"""
+        print("decr key=%s pid=%d addr=0x%016x count=%d len=%d" % (key, pid, addr, self.count, len(self.pids),))
+        assert len(self.pids) == len(self.addrs)
+        assert len(self.pids) == self.count
+        if self.count > 0:
+            for i in range(0, len(self.pids)):
+                if (self.pids[i] == pid) and (self.addrs[i] == addr):
+                    self.count -= 1
+                    self.pids.pop(i)
+                    self.addrs.pop(i)
+                    return
+            print("decr did not find pid %d and addr 0x%016x" % (pid, addr,))  # TODO: make assert
 
 class InsnRunAnalyzer:
     """Look for instruction runs of length between lg_lb and lg_ub.
@@ -70,14 +85,49 @@ class InsnRunAnalyzer:
 
     def analyze_insn_run(self, pid, phys_addr, insns, decoder):
         """popcount runs of instructions of various lengths"""
-        self.print_insn_run(pid, phys_addr, insns, decoder)
+        if False:
+            self.print_insn_run(pid, phys_addr, insns, decoder)
+        self._process_insn_run(pid, phys_addr, insns, decoder, self.lg_lb, self.lg_ub, True)
+
+    def _process_insn_run(self, pid, phys_addr, insns, decoder, xlg_lb, xlg_ub, incr):
+        """Private helper function to create all O(N**2) sublists length < N."""
         ninsns = len(insns)
-        for run_lg in range(self.lg_lb, self.lg_ub+1):
+        for run_lg in range(xlg_lb, xlg_ub+1):
             for i in range(0, ninsns - run_lg):
                 insn_slice = tuple(insns[i:i+run_lg])
-                if insn_slice not in self.runcount:
-                    self.runcount[insn_slice] = RunCountAccumulator()
-                self.runcount[insn_slice].incr(pid, phys_addr + i * 4)
+                if incr:
+                    if insn_slice not in self.runcount:
+                        self.runcount[insn_slice] = RunCountAccumulator()
+                    self.runcount[insn_slice].incr(insn_slice, pid, phys_addr + i * 4)
+                else:
+                    self.runcount[insn_slice].decr(insn_slice, pid, phys_addr + i * 4)
+
+    def prune(self, decoder):
+        """Prune away small matches implied by larger matches."""
+        nslices = 0
+        for insn_slice, accum_object in sorted(self.runcount.items(),
+                reverse=True, key=lambda x: 100*len(x[0])+x[1].count):
+            nslices += 1
+            if accum_object.count <= 0:
+                continue
+            insns = list(insn_slice)
+            print("start prune with %s" % (insns,))
+            for i in range(0, len(accum_object.pids)):
+                print("count=%d i=%d pid=%d addr=0x%016x" % (
+                    accum_object.count,
+                    i,
+                    accum_object.pids[i],
+                    accum_object.addrs[i],))
+                self._process_insn_run(
+                    accum_object.pids[i],
+                    accum_object.addrs[i],
+                    insns,
+                    decoder,
+                    self.lg_lb, len(insn_slice)-1,
+                    False)
+            if nslices > 10:
+                print("stop prune after examine %d slices." % (nslices,))
+                break
 
     def dump(self, decoder):
         """Dump out the instruction runs."""
@@ -210,6 +260,7 @@ def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
                 phys_addr,
                 new_contents[phys_addr],
                 decoder)
+    run_analyzer.prune(decoder)
     run_analyzer.dump(decoder)
     decoder.dump()
 
