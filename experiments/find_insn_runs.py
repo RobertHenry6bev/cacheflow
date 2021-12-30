@@ -13,6 +13,8 @@ that span many 16-instruction wide cache lines.
 
 import argparse
 import csv
+import os
+import re
 
 import capstone
 
@@ -110,7 +112,7 @@ class InsnRunAnalyzer:
                 else:
                     self.runcount[insn_slice].decr(insn_slice, pid, phys_addr + i * 4)
 
-    def dump(self, decoder):
+    def dump(self, decoder, pidmap):
         """Dump out the instruction runs."""
         last_len = 0
         rangekill = set()
@@ -157,7 +159,7 @@ class InsnRunAnalyzer:
                 for i in range(0, len(insn_slice)):
                     for j in range(0, len(accum.addrs)):
                         phys_addr = accum.addrs[j] + i * 4
-                        print("0x%016x " % (phys_addr,), end="")
+                        print("%5d %8s 0x%016x " % (accum.pids[j], pidmap[accum.pids[j]], phys_addr,), end="")
                     print("0x%08x %s" % (
                         insn_slice[i], decoder.decode_to_str(phys_addr, insn_slice[i]),))
                 print("")
@@ -208,7 +210,7 @@ class InstructionDecoder:
         """Return True if this decodes as a valid instruction."""
         return self.decode(phys_addr, insn_value) is not None
 
-def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
+def consume_csv_file_analyze(input_fd, pidmap, lg_lb, lg_ub):
     """Read a csv file, doing analysis."""
     do_print = False
     do_skip_pid0 = True
@@ -262,7 +264,7 @@ def consume_csv_file_analyze(input_fd, lg_lb, lg_ub):
                 phys_addr,
                 new_contents[phys_addr],
                 decoder)
-    run_analyzer.dump(decoder)
+    run_analyzer.dump(decoder, pidmap)
     decoder.dump()
 
 def analyze_cache_contents():
@@ -282,10 +284,31 @@ def analyze_cache_contents():
         "rest",
         nargs=argparse.REMAINDER,)
     args = parser.parse_args()
+    pidmap = read_saved_command_info("./data")
     for input_file_name in args.rest:
         print("Reading %s" % (input_file_name,))
         with open(input_file_name, "r") as input_fd:
-            consume_csv_file_analyze(input_fd, args.lb, args.ub)
+            consume_csv_file_analyze(input_fd, pidmap, args.lb, args.ub)
+
+RE_FILENAME_CMDLINE = re.compile(r'^(\d+)\.cmdline\.txt')
+def read_saved_command_info(data_path):
+    """Read a copy of /proc/pid/cmdline and return the sanitized command name.
+    The cmdline has substrings terminated by python null.
+    """
+    pid_map = {}
+    for input_file_name in os.listdir(data_path):
+        match = RE_FILENAME_CMDLINE.match(input_file_name)
+        if match:
+            pid = int(match.group(1))
+            with open("./data/" + input_file_name, "rb") as fd:
+                cmdline_raw = fd.read()
+                raw_splits = cmdline_raw.split(b'\0')
+                name = raw_splits[0].decode()
+                path_splits = name.split("/")
+                base_name = path_splits[-1]
+                space_splits = base_name.split(" ")
+                pid_map[pid] = space_splits[0]
+    return pid_map
 
 if __name__ == "__main__":
     analyze_cache_contents()
