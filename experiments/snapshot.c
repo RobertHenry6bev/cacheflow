@@ -123,7 +123,7 @@ void read_cache_to_file(const char *filename, int index);
 /* Function to complete execution */
 void wrap_up(void);
 
-int observation = DUMPCACHE_DO_L2;
+int observation = DUMPCACHE_DO_L1;
 
 int main(int argc, char **argv) {
     int opt, res;

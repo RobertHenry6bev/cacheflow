@@ -28,11 +28,16 @@ VICTIM = e11_flood.x
 VICTIM_ARG =
 
 VICTIM = e11_sleep.x
-VICTIM_ARG = 1
+VICTIM_ARG = 10
+
+VICTIM = e11_math.x
+VICTIM_ARG = 500
 
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
+	sudo ./snapshot.x -p $(PERIOD) -f -o $(PWD)/data \
+          "$(PWD)/$(VICTIM) $(VICTIM_ARG)" \
+          "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
 	sudo chown $(USER):$(USER) data/*
 
 # e11_flood.x: e11_flood.c
