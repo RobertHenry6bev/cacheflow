@@ -92,7 +92,10 @@ int max_prio;
 volatile int done = 0;
 int snapshots = 0;
 
-/* Use user-specified parameters to configure the kernel module for acquisition */
+/*
+ * Use user-specified parameters to configure
+ * the kernel module for acquisition
+ */
 int config_shutter(void);
 
 /* Function to spawn all the listed benchmarks */
@@ -271,19 +274,11 @@ int main(int argc, char **argv) {
     max_prio = sched_get_priority_max(SCHED_FIFO);
     set_realtime(max_prio);
 
-    /* Send setup commands to the kernel module */
     config_shutter();
-
-    /* Done with command line parsing -- time to fire up the benchmarks */
     launch_benchmarks();
-
-    /* Done with benchmarks --- wait for completion using an asynch handler */
     wait_completion();
-
-    /* Almost done - wrap up by creating pid.txt file */
     wrap_up();
 
-    /* Deallocate any malloc'd memory before exiting */
     if (flag_out) {
         free(outdir);
     }
@@ -484,13 +479,16 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
     static char * __cmd = NULL;
     static char __proc_entry[MALLOC_CMD_PAD];
 
-    static struct itimerspec it; /* = {
-        // I couldn't get c++ designated initializers to work
+    // TODO(robhenry): I couldn't get c++ designated initializers to work
+    static struct itimerspec it;
+#if 0
+    = {
         .it_value.tv_sec = 0,
         .it_value.tv_nsec = 0,
         .it_interval.tv_sec = 0,
         .it_interval.tv_nsec = 0,
-    }; */
+    };
+#endif
 
     timer_t timer = *((timer_t *)(info->si_value.sival_ptr));
     int i;
@@ -528,7 +526,6 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
      * Acquire maps files if layout acquisition is selected
      */
     if (flag_bm_layout) {
-        /* Initiate a /proc/pid/maps dump to file */
         for (i = 0; i < bm_count; ++i) {
             sprintf(__cmd, "%s/%d-%04d.txt", outdir, pids[i], snapshots);
             sprintf(__proc_entry, "/proc/%d/maps", pids[i]);
@@ -536,7 +533,9 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
         }
     }
 
-    /* Resume all the children with SIGCONT (skip in async mode) */
+    /*
+     * Resume all the children with SIGCONT (skip in async mode)
+     */
     for (i = 0; i < bm_count && !flag_async; ++i) {
         kill(pids[i], SIGCONT);
     }
@@ -586,7 +585,8 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
     if (!flag_mimic) {
         acquire_new_snapshot();
         /*
-         * Unless we are in transparent mode, save cache dump to file right away.
+         * Unless we are in transparent mode,
+         * save cache dump to file right away.
          */
         if (!flag_transparent) {
             sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
@@ -599,9 +599,7 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
         }
     }
 
-    /* Acquire maps files if layout acquisition is selected */
     if (flag_bm_layout) {
-        /* Initiate a /proc/pid/maps dump to file */
         for (i = 0; i < bm_count; ++i) {
             sprintf(__cmd, "%s/%d-%d.txt", outdir, pids[i], snapshots);
             sprintf(__proc_entry, "/proc/%d/maps", pids[i]);
@@ -861,7 +859,8 @@ void read_cache_to_file(const char *filename, int index) {
     }
 
     if (!cache_contents) {
-        cache_contents = (union cache_sample *)malloc(sizeof(union cache_sample));
+        cache_contents = (union cache_sample *)
+            malloc(sizeof(union cache_sample));
     }
 
     dumpcache_fd = open_mod();
@@ -913,8 +912,10 @@ void read_cache_to_file(const char *filename, int index) {
           if (pid != 0) {
             char src_name[BUFSIZ];
             char dst_name[BUFSIZ];
-            snprintf(dst_name, sizeof(dst_name), "%s/%d.cmdline.txt", outdir, pid);
-            snprintf(src_name, sizeof(src_name), "/proc/%d/cmdline", pid);
+            snprintf(dst_name, sizeof(dst_name),
+                "%s/%d.cmdline.txt", outdir, pid);
+            snprintf(src_name, sizeof(src_name),
+                "/proc/%d/cmdline", pid);
             copy_file(src_name, dst_name);
           }
       }

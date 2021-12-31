@@ -65,15 +65,11 @@ static unsigned long lookup_name(const char *name) {
       #include "kallsyms_lookup_name_func_addr.h.out"
     ;  /* */  // NOLINT
   }
-  pr_info("kallsyms_lookup_name 0x%px aka 0x%016llx %s\n",
-      kallsyms_lookup_name_func,
-      (u64)kallsyms_lookup_name_func,
-      name);
+  pr_info("kallsyms_lookup_name 0x%px %s\n",
+      kallsyms_lookup_name_func, name);
   handle = kallsyms_lookup_name_func(name);
-  pr_info("kallsyms_lookup_name 0x%px aka 0x%016llx %s => 0x%016lx\n",
-      kallsyms_lookup_name_func,
-      (u64)kallsyms_lookup_name_func,
-      name, handle);
+  pr_info("kallsyms_lookup_name 0x%px %s => 0x%016lx\n",
+      kallsyms_lookup_name_func, name, handle);
   return handle;
 }
 
@@ -405,38 +401,34 @@ asm_ramindex_insn_mrs(u32 *ildata, u8 sel) {
 }
 
 bool rmap_one_func(struct page *page,
-      struct vm_area_struct *vma, unsigned long addr, void *arg) {
+      struct vm_area_struct *vma, unsigned long addr, void *v_arg) {
     struct mm_struct* mm;
     struct task_struct* ts;
-    struct process_data {
-        pid_t pid;
-        uint64_t addr;
-    };
-
-    ((struct process_data*) arg)->addr = 0;
-
+    struct phys_to_pid_data *arg = (struct phys_to_pid_data *)v_arg;
+    arg->addr = 0;
     mm = vma->vm_mm;
     if (!mm) {
-            ((struct process_data*) arg)->pid = (pid_t)99999;
-            return true;
+        arg->pid = (pid_t)99999;
+        return true;
     }
 
     // Check if task struct is null
     ts = mm->owner;
     if (!ts) {
-            ((struct process_data*) arg)->pid = (pid_t)99999;
-            return true;
+        arg->pid = (pid_t)99998;
+        return true;
     }
 
-    // If pid is 1, continue searching pages
-    if ((ts->pid) == 1) {
-            ((struct process_data*) arg)->pid = (ts->pid);
-            return true;
+    pr_info("phys_to_pid survived to end addr=0x%016lx\n", addr);
+    // If pid is 1, continue searching pages  (TODO(robhenry): Why?)
+    if (ts->pid == 1) {
+        arg->pid = ts->pid;
+        return true;
     }
 
     // *Probably* the correct pid
-    ((struct process_data*) arg)->pid = (ts->pid);
-    ((struct process_data*) arg)->addr = addr;
+    arg->pid = ts->pid;
+    arg->addr = addr;
     return false;
 }
 
@@ -454,25 +446,21 @@ bool invalid_func(struct vm_area_struct *vma, void *arg) {
     return false;
 }
 
-void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
+void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
     struct page *derived_page;
     struct rmap_walk_control rwc;
 
     static int all_count = 0;
     static int buf_count = 0;
 
-    // memset(pidinfo, 0, sizeof(struct phys_to_pid_type));  // needed?
     pidinfo->pid = 0;
     pidinfo->addr = 0;
 
-    // memset(&rwc, 0, sizeof(rwc));  // needed? WTF? compiler sizeof() errors
     rwc.arg = pidinfo;
     rwc.rmap_one = rmap_one_func;
     rwc.done = NULL;  // perhaps use done_func?
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
-
-    TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx\n", pa);
 
     //
     // Trip wire for counting the number of address translations
@@ -491,23 +479,19 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
       pidinfo->pid = -1;
       return;
     }
-    derived_page = phys_to_page(pa);
-    TRACE_IOCTL pr_info(
-      "call phys_to_page with 0x%016llx => derived_page 0x%px aka 0x%016llx\n",
-      pa, derived_page, (u64)derived_page);
     if (rmap_walk_locked_func) {
-      TRACE_IOCTL pr_info(
-        "calling rmap_walk_locked_func 0x%px aka 0x%016llx "
-        "with derived_page=0x%px aka 0x%016llx\n",
-        rmap_walk_locked_func,
-            (u64)rmap_walk_locked_func, derived_page, (u64)derived_page);
+      derived_page = phys_to_page(pa);
+      // TRACE_IOCTL
+      pr_info("rmap_walk_locked_func from addr 0x%016llx derived_page 0x%px\n",
+          pa, derived_page);
       //
       // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
       //   ... Like rmap_walk,but caller holds relevant rmap lock ...
       // TODO(robhenry): Do we? where is the lock?
       //
       rmap_walk_locked_func(derived_page, &rwc);
-      TRACE_IOCTL pr_info(
+      // TRACE_IOCTL
+      pr_info(
           "rmap_walk_locked_func on 0x%016llx returns pid=%d addr=0x%016llx\n",
           (u64)derived_page,
           pidinfo->pid, pidinfo->addr);
@@ -578,6 +562,7 @@ int init_module(void) {
 #else
     #define dumpcache_ioremap ioremap_cache  // doesn't really cache?! WTF?
 #endif
+
     /*
      * Map buffer apertures to be accessible from kernel mode
      */
@@ -593,25 +578,22 @@ int init_module(void) {
           CACHE_BUF_SIZE,
           MEMREMAP_WT);
 
-      pr_info("__buf_start=0x%px aka 0x%016llx from 0x%016lx for %ld\n",
-          __buf_start, (u64)__buf_start,
-          CACHE_BUF_BASE, CACHE_BUF_COUNT);
+      pr_info("__buf_start=0x%px from 0x%016lx for %ld\n",
+          __buf_start, CACHE_BUF_BASE, CACHE_BUF_COUNT);
     } else {
       __buf_start = (union cache_sample *) 0;
     }
-    pr_info("__buf_start=0x%px aka 0x%016llx\n", __buf_start, (u64)__buf_start);
+    pr_info("__buf_start=0x%px\n", __buf_start);
 
     if (!__buf_start) {
-            pr_err("Unable to dumpcache_ioremap buffer space.\n");
-            return -ENOMEM;
+        pr_err("Unable to dumpcache_ioremap buffer space.\n");
+        return -ENOMEM;
     }
 
-    /* Set default flags, counter, and current sample buffer */
     flags = 0;
     cur_buf = 0;
     cur_sample = sample_from_index(0);
 
-    /* Setup proc interface */
     proc_create(MODNAME, 0644, NULL, &dumpcache_ops);
     pr_info("load_module finished\n");
     return 0;

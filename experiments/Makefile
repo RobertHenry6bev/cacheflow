@@ -1,6 +1,7 @@
 .PHONY: all
 all: run
 
+WHICH_CACHE = 2
 WHICH_CACHE = 1
 
 PERIOD = 5
@@ -16,13 +17,14 @@ VICTIM_ARG = 10
 VICTIM = e11_math.x
 VICTIM_ARG = 500
 
+# 120000 is about 2 seconds
 VICTIM = e11_flood.x
-VICTIM_ARG = 1000000
+VICTIM_ARG = 120000
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -$(WHICH_CACHE) -p $(PERIOD) -f -o $(PWD)/data \
+	sudo ./snapshot.x -l -$(WHICH_CACHE) -p $(PERIOD) -f -o $(PWD)/data \
           "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
 	sudo chown $(USER):$(USER) data/*
 

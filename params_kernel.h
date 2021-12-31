@@ -101,7 +101,7 @@ union cache_sample {
     struct Cortex_L2_Unif_Cache l2;
 };
 
-struct phys_to_pid_type {
+struct phys_to_pid_data {
     pid_t pid;
     uint64_t addr;
 };

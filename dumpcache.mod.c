@@ -36,11 +36,10 @@ __used __section("__versions") = {
 	{ 0xa339e6e5, "on_each_cpu_cond_mask" },
 	{ 0x5e3240a0, "__cpu_online_mask" },
 	{ 0x7a2af7b4, "cpu_number" },
-	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0x9688de8b, "memstart_addr" },
+	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0x460b609b, "seq_write" },
 	{ 0x599fb41c, "kvmalloc_node" },
-	{ 0xc5850110, "printk" },
 	{ 0x741150a6, "seq_open" },
 	{ 0x45115c86, "seq_read" },
 	{ 0xc9953998, "seq_lseek" },
@@ -48,6 +47,7 @@ __used __section("__versions") = {
 	{ 0x4829a47e, "memcpy" },
 	{ 0x4c98d79b, "cpu_hwcap_keys" },
 	{ 0x14b89635, "arm64_const_caps_ready" },
+	{ 0xc5850110, "printk" },
 	{ 0xb5b54b34, "_raw_spin_unlock" },
 	{ 0xba8fbd64, "_raw_spin_lock" },
 };
@@ -55,4 +55,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "63618B654C5FDCF49AC3102");
+MODULE_INFO(srcversion, "033FAE0C5B77503B063846F");

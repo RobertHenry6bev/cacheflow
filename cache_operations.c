@@ -124,29 +124,33 @@ static int fill_Cortex_L1_Insn(void) {
       struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
       int valid = (p->tag.raw[1] >> 1) & 0x1;
       int ident = (p->tag.raw[1] >> 0) & 0x1;
-      p->tag.pid = 0xaaa;
       (void)ident;
+      if (0) {
+        pr_info("xxx valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
+          valid, ident, p->tag.raw[1], p->tag.raw[0]);
+      }
       if (valid) {
-        struct phys_to_pid_type process_data_struct;
+        struct phys_to_pid_data pid_data;
         //
         // The 2 bits in "common" need not be identical,
         // and that's observed empirically
         //
-        // bits va[13:12] are lost.  They overlap the bottom 2 bits
-        // of the phys address.
+        // bits va[13:12] are lost.
+        // They overlap the bottom 2 bits of the phys address.
         //
-        uint64_t pa = p->tag.raw[0] << 12;  // bits 43:12
-        pa |= va & ((1 << 12) - 1);  // bits 11:6; 5:0 is 16 insns
-        phys_to_pid(pa, &process_data_struct);
-        if (0 && process_data_struct.pid != 0) {
-          printk(KERN_INFO
-              "%d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
+        uint64_t pa = 0x0ULL;
+        pa |= (p->tag.raw[0] << 12);   // bits 43:12
+        pa |= (va & ((1 << 12) - 1));  // bits 11:6; 5:0 is 16 insns
+        phys_to_pid(pa, &pid_data);
+        if (1 /*&& pid_data.pid != 0*/) {
+          pr_info(
+              "yyy %d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
               way, va>>6,
               va, pa,
-              process_data_struct.pid,
-              process_data_struct.pid);
+              pid_data.pid,
+              pid_data.pid);
         }
-        p->tag.pid = process_data_struct.pid;
+        p->tag.pid = pid_data.pid;
       }
     }
   }
@@ -183,7 +187,7 @@ static int fill_Cortex_L2_Unif(void) {
         for (set = 0; set < Cortex_L2_NROW; set++) {
             struct Cortex_L2_Unif_Tag *p = &cache->way[way].set[set].tag;
             if (p->pa_tag & MASK2(14, 0)) {
-                printk(KERN_INFO "invalid p->pa_tag 0x%016llx\n", p->pa_tag);
+                pr_info("invalid p->pa_tag 0x%016llx\n", p->pa_tag);
             }
             //
             // half from 512..1023 'F'
@@ -197,9 +201,9 @@ static int fill_Cortex_L2_Unif(void) {
             p->pa = (p->pa_tag & ~MASK2(15, 0)) | ((set << 6) & MASK2(15, 6));
 
             if (p->moesi != 0) {
-                struct phys_to_pid_type process_data_struct;
-                phys_to_pid(p->pa, &process_data_struct);
-                p->pid = process_data_struct.pid;
+                struct phys_to_pid_data pid_data;
+                phys_to_pid(p->pa, &pid_data);
+                p->pid = pid_data.pid;
             }
         }
     }
@@ -267,7 +271,8 @@ void print_Cortex_L2_Unif(FILE *outfp,
               for (q = 0; q < 4; q++) {
                 fail_brand += (p->quad[q].instruction[0] != 0x14000004);
                 fail_brand += (p->quad[q].instruction[1] != 0xffffffff);
-                fail_pid +=   ((pid_t)(p->quad[q].instruction[2]) != p->tag.pid);
+                fail_pid +=   (
+                    (pid_t)(p->quad[q].instruction[2]) != p->tag.pid);
               }
             }
             fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x,0x%016lx ",

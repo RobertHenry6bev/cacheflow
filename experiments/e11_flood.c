@@ -57,7 +57,6 @@ uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
   // and swap in the bits for "count".
   //
   {
-    printf("count=%d\n", count);
     uint32_t upper = (count >> 16) & 0xffff;
     uint32_t lower = (count >>  0) & 0xffff;
     uint32_t movw = 0x5291b001;  // movw w1, #0x8d80
@@ -136,7 +135,7 @@ int main(int argc, const char **argv) {
   __builtin___clear_cache(code_block, code_block+ninsns);  // builtin for gcc
 
   fooworker func = (fooworker)code_block;
-  if (1) {
+  if (0) {
     func(1);
     printf("DONE!\n");
   } else {
