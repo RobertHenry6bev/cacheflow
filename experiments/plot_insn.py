@@ -16,26 +16,7 @@ import random
 
 import png  # sudo apt-get install python3-pip ; pip3 install pypng
 
-IS_L2 = True
-if IS_L2:
-    FIELD_NAMES = [] \
-      + ["check"] \
-      + ["way", "set"] \
-      + ["moesi"] \
-      + ["pid", "pid_x"] \
-      + ["rawtag"] \
-      + ["pa"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY = 16
-    NSET = 1024
-else:
-    FIELD_NAMES = [] \
-      + ["way", "set"] \
-      + ["pid", "pid_x"] \
-      + ["t1" + "t0"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY =   3
-    NSET = 256
+import cachelib
 
 class LineStats:
     """Statistics on a sequential run of instructions."""
@@ -93,6 +74,11 @@ def plot_insn_bitmap():
     """Plot the L1 or L2 Cache as a bitmap."""
     parser = argparse.ArgumentParser("write png file with bitmap of found instructions")
     parser.add_argument(
+        "--kind",
+        help="kind of cache, either L1 or L2",
+        type=str,
+        default="L1",)
+    parser.add_argument(
         "--insn",
         help="instruction to find",
         type=int,
@@ -128,14 +114,15 @@ def plot_insn_bitmap():
         nargs=argparse.REMAINDER,)
 
     args = parser.parse_args()
+    cache_info = cachelib.configuration_factory(args.kind)
 
     pid_color = {}
     pid_count = {}
 
     simple_line_stats = LineStats()
     wayset_line_stats = {}
-    for way in range(0, NWAY):
-        for seti in range(0, NSET):
+    for way in range(0, cache_info.get_nway()):
+        for seti in range(0, cache_info.get_nset()):
             wayset_line_stats[(way, seti)] = LineStats()
 
     given_png_file_name = args.output
@@ -147,31 +134,30 @@ def plot_insn_bitmap():
             else:
                 png_file_name = input_file_name.replace(".csv", ".png")
             if not png_file_name:
-                consume_csv_file(input_fd, args, None,
+                consume_csv_file(cache_info, input_fd, args, None,
                     pid_color, pid_count,
                     simple_line_stats, wayset_line_stats)
             else:
                 with open(png_file_name, "wb") as png_file:
                     print("Writing %s" % (png_file_name,))
-                    consume_csv_file(input_fd, args, png_file,
+                    consume_csv_file(cache_info, input_fd, args, png_file,
                         pid_color, pid_count,
                         simple_line_stats, wayset_line_stats)
     if args.stats:
         simple_line_stats.dump()
-        for way in range(0, NWAY):
-            for seti in range(0, NSET):
+        for way in range(0, cache_info.get_nway()):
+            for seti in range(0, cache_info.get_nset()):
                 print("------------- %3d %3d" % (way, seti,))
                 wayset_line_stats[(way, seti)].dump()
 
-def consume_csv_file(input_fd, args, png_file,
+def consume_csv_file(cache_info, input_fd, args, png_file,
       pid_color, pid_count,
       simple_line_stats, wayset_line_stats):
     """Read a csv file, possibliy writing a png_file, doing analysis."""
-
-    reader = csv.DictReader(input_fd, fieldnames=FIELD_NAMES)
+    reader = csv.DictReader(input_fd, cache_info.get_field_names())
     #
     # Read all rows, and store internally,
-    # so we can display the image with NWAYS ways going left to right.
+    # so we can display the image with cache_info.get_nway()S ways going left to right.
     #
     contents = {}
     pids = {}
@@ -193,11 +179,11 @@ def consume_csv_file(input_fd, args, png_file,
     #
     png_matrix = []
     xwidth = 0
-    for seti in range(0, NSET):
+    for seti in range(0, cache_info.get_nset()):
         for _y in range(0, args.scale):
             xwidth = 0
             png_row = []
-            for way in range(0, NWAY):
+            for way in range(0, cache_info.get_nway()):
                 #
                 # Draw a vertical blue bar at the left end
                 #
@@ -276,7 +262,7 @@ def consume_csv_file(input_fd, args, png_file,
         # print("xwidth=%d XXX do_grey_scale %s" % (xwidth, do_grey_scale,))
         png_writer = png.Writer(
             xwidth,
-            args.scale*NSET,
+            args.scale*cache_info.get_nset(),
             greyscale=do_grey_scale)
         png_writer.write(png_file, png_matrix)
 

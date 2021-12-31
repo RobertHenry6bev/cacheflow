@@ -2,13 +2,11 @@
 
 """
 Analyze experiments/data/cachedump*.csv files and extract working set
-sizes of all of the processes. Extract other information, such as
-longest prefix
+sizes of all of the processes
 
-This is probably close to a one-off.
-
+This writes another csv file, which is read by the plotter
+from plot_workingsets.py
 """
-
 # pylint: disable=too-many-locals
 
 import argparse
@@ -17,28 +15,9 @@ import re
 
 import capstone
 
-DEBUG = True
+import cachelib
 
-IS_L2 = True
-if IS_L2:
-    FIELD_NAMES = [] \
-      + ["check"] \
-      + ["way", "set"] \
-      + ["moesi"] \
-      + ["pid", "pid_x"] \
-      + ["rawtag"] \
-      + ["phys_addr"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY = 16
-    NSET = 1024
-else:
-    FIELD_NAMES = [] \
-      + ["way", "set"] \
-      + ["pid", "pid_x"] \
-      + ["t1" + "t0"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY =   3
-    NSET = 256
+DEBUG = False
 
 class PidInfo:
     """Holds information about a particular pid."""
@@ -59,29 +38,34 @@ def analyze_processes():
     """Analyze processes working sets in the cache"""
     parser = argparse.ArgumentParser("analyze process resident working sets")
     parser.add_argument(
+        "--kind",
+        help="kind of cache, either L1 or L2",
+        type=str,
+        default="L1",)
+    parser.add_argument(
         "rest",
         nargs=argparse.REMAINDER,)
 
     args = parser.parse_args()
+    cache_info = cachelib.configuration_factory(args.kind)
 
     print(PidInfo.fieldnames(), flush=True)
     for input_file_name in args.rest:
         with open(input_file_name, "r") as input_fd:
             try:
-                analyze_processes_file(input_file_name, input_fd)
+                analyze_processes_file(cache_info, input_file_name, input_fd)
             except TypeError:
                 pass
 
 RE_FILENAME = re.compile(r'[^0-9]+([0-9]+)\.csv')
-def analyze_processes_file(input_file_name, input_fd):
+def analyze_processes_file(cache_info, input_file_name, input_fd):
     """Read a csv file, doing analysis."""
     match = RE_FILENAME.match(input_file_name)
     assert match
     timestep = int(match.group(1), 10)
-    reader = csv.DictReader(input_fd, fieldnames=FIELD_NAMES)
+    reader = csv.DictReader(input_fd, fieldnames=cache_info.get_field_names())
     #
-    # Read all rows, and store internally,
-    # so we can display the image with NWAYS ways going left to right.
+    # Read all rows, and store internally
     #
     pidinfo = {}  # indexed by phys_addr of PidInfo
     for row in reader:

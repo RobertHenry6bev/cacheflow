@@ -12,3 +12,4 @@ data/
 *.out
 core.*
 *.csv
+__pycache__/

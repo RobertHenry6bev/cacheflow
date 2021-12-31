@@ -55,11 +55,12 @@ snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
 clean:
 	rm -f *.o *.x *.mp4 *.png *.mkv
 	rm -f data/*
+	rm -f __pycache__
 
 MAX_FILES = 50
 MAX_FILES = 5000
-# ALL_CSV := $(shell ls data/*.csv                | head -$(MAX_FILES))
-ALL_CSV := $(shell find data/*.csv -size 3883008c | head -$(MAX_FILES))
+ALL_CSV := $(shell ls data/*.csv                | head -$(MAX_FILES))
+# ALL_CSV := $(shell find data/*.csv -size 3883008c | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
 DURATION_NUM=10
@@ -123,7 +124,7 @@ lint: $(CPPLINT) *.c *.h
 workingsets.csv: analyze_processes.py data/*.csv
 	python3 analyze_processes.py data/*.csv > $@
 
-workingsets.png: plot_workingsets.py workingsets.csv
-	python3 plot_workingsets.py workingsets.csv
+workingsets.png: workingsets.csv plot_workingsets.py
+	python3 plot_workingsets.py --input $< --output $@
 	ls -l *.png
 	file *.png

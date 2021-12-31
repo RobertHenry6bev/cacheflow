@@ -18,26 +18,7 @@ import re
 
 import capstone
 
-IS_L2 = True
-if IS_L2:
-    FIELD_NAMES = [] \
-      + ["check"] \
-      + ["way", "set"] \
-      + ["moesi"] \
-      + ["pid", "pid_x"] \
-      + ["rawtag"] \
-      + ["phys_addr"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY = 16
-    NSET = 1024
-else:
-    FIELD_NAMES = [] \
-      + ["way", "set"] \
-      + ["pid", "pid_x"] \
-      + ["t1" + "t0"] \
-      + ["d_%02d" % (i,) for i in range(0, 16)]
-    NWAY =   3
-    NSET = 256
+import cachelib
 
 class RunCountAccumulator:
     """This is an accumulator when counting run frequency."""
@@ -94,7 +75,7 @@ class InsnRunAnalyzer:
 
     def analyze_insn_run(self, pid, phys_addr, insns, decoder):
         """popcount runs of instructions of various lengths"""
-        do_debug = False
+        do_debug = True
         if do_debug:
             self.print_insn_run(pid, phys_addr, insns, decoder)
         self._process_insn_run(pid, phys_addr, insns, decoder, self.lg_lb, self.lg_ub, True)
@@ -164,63 +145,17 @@ class InsnRunAnalyzer:
                         insn_slice[i], decoder.decode_to_str(phys_addr, insn_slice[i]),))
                 print("")
 
-class InstructionDecoder:
-    """Given a 4-byte uint32_t ARM64 instruction,
-    decode it into a mnemonic and op_str, if possible.
-    Cache the results, as Capstone takes a long time.
-    """
-    def __init__(self):
-        self.capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
-        self.insn_value_to_decode = {}
-
-    def dump(self):
-        """Print out the cache."""
-        # print(self.insn_value_to_decode)
-        print("%d instructions in the decode cache" % (len(self.insn_value_to_decode),))
-
-    def decode_to_str(self, phys_addr, insn_value):
-        """decode the instruction to a printable string."""
-        decoded = self.decode(phys_addr, insn_value)
-        if decoded is None:
-            return "??"
-        if len(decoded) == 1:
-            return decoded[0]
-        return "%s %s" % (decoded[0], decoded[1],)
-
-    def decode(self, phys_addr, insn_value):
-        """Returns None if insn_value isn't decodable.
-        Otherwise returns a list of length 1 or 2,
-        the first item is the mnemonic(opcode), 2nd the op_str.
-        """
-        if insn_value in self.insn_value_to_decode:
-            return self.insn_value_to_decode[insn_value]
-        ndecoded = 0
-        decode_value = None
-        for insn in self.capstone_engine.disasm(insn_value.to_bytes(4, "little"), phys_addr):
-            decode_value = [insn.mnemonic, insn.op_str]
-            ndecoded += 1
-        assert 0 <= ndecoded <= 1
-        if ndecoded == 0:
-            self.insn_value_to_decode[insn_value] = None
-            return None
-        self.insn_value_to_decode[insn_value] = decode_value
-        return decode_value
-
-    def is_instruction(self, phys_addr, insn_value):
-        """Return True if this decodes as a valid instruction."""
-        return self.decode(phys_addr, insn_value) is not None
-
-def consume_csv_file_analyze(input_fd, pidmap, lg_lb, lg_ub):
+def consume_csv_file_analyze(cache_info, input_fd, pidmap, lg_lb, lg_ub):
     """Read a csv file, doing analysis."""
     do_print = False
     do_skip_pid0 = True
     run_analyzer = InsnRunAnalyzer(lg_lb, lg_ub)
-    decoder = InstructionDecoder()
+    decoder = cachelib.InstructionDecoder()
 
-    reader = csv.DictReader(input_fd, fieldnames=FIELD_NAMES)
+    reader = csv.DictReader(input_fd, fieldnames=cache_info.get_field_names())
     #
     # Read all rows, and store internally,
-    # so we can display the image with NWAYS ways going left to right.
+    # so we can display the image with cachelib.NWAYS ways going left to right.
     #
     addr_to_insns = {}  # indexed by phys_addr
     addr_to_pid = {}
@@ -243,14 +178,18 @@ def consume_csv_file_analyze(input_fd, pidmap, lg_lb, lg_ub):
         if (last_phys_addr in addr_to_insns) and \
                 (phys_addr == (last_phys_addr + 4 * len(new_contents[last_phys_addr]))):
             new_contents[last_phys_addr] = new_contents[last_phys_addr] + addr_to_insns[phys_addr]
-            assert new_addr_to_pid[last_phys_addr] == addr_to_pid[phys_addr]
+            if new_addr_to_pid[last_phys_addr] != addr_to_pid[phys_addr]:
+                # This was an assert for L2 land TODO(robhenry)
+                print("new_addr_to_pid[0x%x] = %d != addr_to_pid[0x%x] = %d" % (
+                  last_phys_addr, new_addr_to_pid[last_phys_addr],
+                  phys_addr, addr_to_pid[phys_addr],))
         else:
             last_phys_addr = phys_addr
             new_contents[last_phys_addr] = addr_to_insns[phys_addr]
             new_addr_to_pid[last_phys_addr] = addr_to_pid[phys_addr]
 
     for phys_addr in sorted(new_contents.keys()):
-        if do_print:
+        if True or do_print:
             print("0x%016x: %4d" % (phys_addr, len(new_contents[phys_addr]),))
         total_decoded = 0
         byte_delta = 0
@@ -258,6 +197,7 @@ def consume_csv_file_analyze(input_fd, pidmap, lg_lb, lg_ub):
             if decoder.is_instruction(phys_addr + byte_delta, insn):
                 total_decoded += 1
             byte_delta += 4
+        print("total_decoded=%d" % (total_decoded,))
         if total_decoded == len(new_contents[phys_addr]):
             run_analyzer.analyze_insn_run(
                 new_addr_to_pid[phys_addr],
@@ -270,6 +210,11 @@ def consume_csv_file_analyze(input_fd, pidmap, lg_lb, lg_ub):
 def analyze_cache_contents():
     """Analyze cache contents."""
     parser = argparse.ArgumentParser("analyze cache contents")
+    parser.add_argument(
+        "--kind",
+        help="kind of cache, either L1 or L2",
+        type=str,
+        default="L1",)
     parser.add_argument(
         "--lb",
         help="lower bound on length of common runs",
@@ -284,31 +229,12 @@ def analyze_cache_contents():
         "rest",
         nargs=argparse.REMAINDER,)
     args = parser.parse_args()
-    pidmap = read_saved_command_info("./data")
+    cache_info = cachelib.configuration_factory(args.kind)
+    pidmap = cachelib.read_saved_command_info("./data")
     for input_file_name in args.rest:
         print("Reading %s" % (input_file_name,))
         with open(input_file_name, "r") as input_fd:
-            consume_csv_file_analyze(input_fd, pidmap, args.lb, args.ub)
-
-RE_FILENAME_CMDLINE = re.compile(r'^(\d+)\.cmdline\.txt')
-def read_saved_command_info(data_path):
-    """Read a copy of /proc/pid/cmdline and return the sanitized command name.
-    The cmdline has substrings terminated by python null.
-    """
-    pid_map = {}
-    for input_file_name in os.listdir(data_path):
-        match = RE_FILENAME_CMDLINE.match(input_file_name)
-        if match:
-            pid = int(match.group(1))
-            with open("./data/" + input_file_name, "rb") as fd:
-                cmdline_raw = fd.read()
-                raw_splits = cmdline_raw.split(b'\0')
-                name = raw_splits[0].decode()
-                path_splits = name.split("/")
-                base_name = path_splits[-1]
-                space_splits = base_name.split(" ")
-                pid_map[pid] = space_splits[0]
-    return pid_map
+            consume_csv_file_analyze(cache_info, input_fd, pidmap, args.lb, args.ub)
 
 if __name__ == "__main__":
     analyze_cache_contents()
