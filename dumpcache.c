@@ -400,89 +400,96 @@ asm_ramindex_insn_mrs(u32 *ildata, u8 sel) {
     }
 }
 
-bool rmap_one_func(struct page *page,
+static bool rmap_one_func(struct page *page,
       struct vm_area_struct *vma, unsigned long addr, void *v_arg) {
-    struct mm_struct* mm;
     struct task_struct* ts;
+    struct mm_struct* mm;
     struct phys_to_pid_data *arg = (struct phys_to_pid_data *)v_arg;
+
     arg->addr = 0;
+
     mm = vma->vm_mm;
     if (!mm) {
+        pr_info("rmap_one_func XXX to end addr=0x%016lx\n", addr);
         arg->pid = (pid_t)99999;
-        return true;
+        return 1;
     }
 
     // Check if task struct is null
     ts = mm->owner;
     if (!ts) {
+        pr_info("rmap_one_func YYY to end addr=0x%016lx\n", addr);
         arg->pid = (pid_t)99998;
-        return true;
+        return 1;
     }
 
-    pr_info("phys_to_pid survived to end addr=0x%016lx\n", addr);
     // If pid is 1, continue searching pages  (TODO(robhenry): Why?)
     if (ts->pid == 1) {
+        pr_info("rmap_one_func ZZZ.0 to end addr=0x%016lx\n", addr);
         arg->pid = ts->pid;
-        return true;
+        return 1;
     }
 
     // *Probably* the correct pid
     arg->pid = ts->pid;
     arg->addr = addr;
-    return false;
+    pr_info("rmap_one_func ZZZ.1 to end addr=0x%016lx\n", addr);
+    return 0;
 }
 
-int done_func(struct page *page) {
+static int done_func(struct page *page) {
+    pr_info("rmap_one_func done_func PPPP\n");
     return 1;
 }
 
-bool invalid_func(struct vm_area_struct *vma, void *arg) {
-    struct process_data {
-        pid_t pid;
-        uint64_t addr;
-    };
-
-    ((struct process_data*) arg)->pid = (pid_t)99999;
-    return false;
+static bool invalid_func(struct vm_area_struct *vma, void *v_arg) {
+    struct phys_to_pid_data *arg = (struct phys_to_pid_data *)v_arg;
+    pr_info("rmap_one_func invalid_func QQQQ\n");
+    arg->pid = (pid_t)99999;
+    return 0;
 }
 
-void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
-    struct page *derived_page;
+static void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
     struct rmap_walk_control rwc;
-
-    static int all_count = 0;
-    static int buf_count = 0;
 
     pidinfo->pid = 0;
     pidinfo->addr = 0;
 
     rwc.arg = pidinfo;
     rwc.rmap_one = rmap_one_func;
-    rwc.done = NULL;  // perhaps use done_func?
+    rwc.done = done_func;
     rwc.anon_lock = NULL;
     rwc.invalid_vma = invalid_func;
 
+#if 0
     //
     // Trip wire for counting the number of address translations
     // that fall within the hardware buffer.
     // This happened when I was using _WB semantics to the I/O memory, not _WT
     //
-    all_count += 1;
-    if ((all_count % 10000) == 0) {
-      TRACE_IOCTL pr_info(
-        "phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
-        all_count, buf_count, (100 * buf_count)/all_count);
+    {
+      static int all_count = 0;
+      static int buf_count = 0;
+      all_count += 1;
+      if ((all_count % 10000) == 0) {
+        // TRACE_IOCTL
+        pr_info(
+          "phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
+          all_count, buf_count, (100 * buf_count)/all_count);
+      }
+      if (CACHE_BUF_BASE <= pa && pa < CACHE_BUF_END) {
+        buf_count += 1;
+        pidinfo->addr = pa;  // perhaps
+        pidinfo->pid = -1;
+        return;
+      }
     }
-    if (CACHE_BUF_BASE <= pa && pa < CACHE_BUF_END) {
-      buf_count += 1;
-      pidinfo->addr = pa;  // perhaps
-      pidinfo->pid = -1;
-      return;
-    }
+#endif
     if (rmap_walk_locked_func) {
-      derived_page = phys_to_page(pa);
+      struct page *derived_page = phys_to_page(pa);
       // TRACE_IOCTL
-      pr_info("rmap_walk_locked_func from addr 0x%016llx derived_page 0x%px\n",
+      pr_info("rmap_walk_locked_func from "
+          "addr 0x%016llx derived_page 0x%px\n",
           pa, derived_page);
       //
       // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
@@ -491,9 +498,9 @@ void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
       //
       rmap_walk_locked_func(derived_page, &rwc);
       // TRACE_IOCTL
-      pr_info(
-          "rmap_walk_locked_func on 0x%016llx returns pid=%d addr=0x%016llx\n",
-          (u64)derived_page,
+      pr_info("rmap_walk_locked_func from "
+          "addr 0x%016llx derived_page 0x%px returns pid=%d addr=0x%016llx\n",
+          pa, derived_page,
           pidinfo->pid, pidinfo->addr);
     }
 }

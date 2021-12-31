@@ -125,7 +125,7 @@ static int fill_Cortex_L1_Insn(void) {
       int valid = (p->tag.raw[1] >> 1) & 0x1;
       int ident = (p->tag.raw[1] >> 0) & 0x1;
       (void)ident;
-      if (0) {
+      if (1) {
         pr_info("xxx valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
           valid, ident, p->tag.raw[1], p->tag.raw[0]);
       }
@@ -144,10 +144,9 @@ static int fill_Cortex_L1_Insn(void) {
         phys_to_pid(pa, &pid_data);
         if (1 /*&& pid_data.pid != 0*/) {
           pr_info(
-              "yyy %d %3d va=0x%08x pa=0x%016llx pid=%d aka 0x%04x\n",
+              "yyy %d %3d va=0x%08x pa=0x%016llx pid=%d\n",
               way, va>>6,
               va, pa,
-              pid_data.pid,
               pid_data.pid);
         }
         p->tag.pid = pid_data.pid;
