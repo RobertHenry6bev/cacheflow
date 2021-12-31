@@ -32,7 +32,7 @@
 #define PARENT_CPU 2
 #define SNAP_PERIOD_MS 5
 
-#define USAGE_STR "Usage: %s [-rmafi] [-o outpath] [-p period_ms] " \
+#define USAGE_STR "Usage: %s [-rmafi12] [-o outpath] [-p period_ms] " \
     "\"benchmark 1\", ..., \"benchmark n\"\n" \
     "Options:\n" \
     "-r\t" "Set real-time priorities. Parent has highest priority,\n" \
@@ -45,6 +45,9 @@
     "-f\t" "Force output. Overwrite content of output directory.\n" \
     "\n" \
     "-i\t" "Isolation mode. Pin parent alone on CPU " STR(PARENT_CPU) ".\n" \
+    "\n" \
+    "-1\t" "Grab L1 cache.\n" \
+    "-2\t" "Grab L2 cache.\n" \
     "\n" \
     "-o\t" "Output files to custom directory instead of " \
         SCRATCHSPACE_DIR ".\n" \
@@ -89,8 +92,7 @@ int max_prio;
 volatile int done = 0;
 int snapshots = 0;
 
-/* Use user-specified parameters to configure the kernel module for
- * acquisition */
+/* Use user-specified parameters to configure the kernel module for acquisition */
 int config_shutter(void);
 
 /* Function to spawn all the listed benchmarks */
@@ -168,72 +170,73 @@ int main(int argc, char **argv) {
         }
 
         case 'i': {
-                /* Isolate: make sure child processes are not
-                 * allowed to run on the same CPU as the
-                 * parent */
-                flag_isol = 1;
-                break;
+            /*
+             * Isolate: make sure child processes are not
+             * allowed to run on the same CPU as the
+             * parent
+             */
+            flag_isol = 1;
+            break;
         }
 
         case 'f': {
-                /* Override content of outdir !!! CAREFUL */
-                flag_force = 1;
-                break;
+            /* Override content of outdir !!! CAREFUL */
+            flag_force = 1;
+            break;
         }
 
         case 'p': {
-                /* Set custom sampling period in ms */
-                snap_period_ms = strtol(optarg, NULL, 10);
-
-                if (snap_period_ms == 0) {
-                    flag_periodic = 0;
-                }
-
-                break;
+            /* Set custom sampling period in ms */
+            snap_period_ms = strtol(optarg, NULL, 10);
+            if (snap_period_ms == 0) {
+                flag_periodic = 0;
+            }
+            break;
         }
 
         case 'n': {
-                /* Disable address resolution in the kernel  */
-                flag_resolve = 0;
-                break;
+            /* Disable address resolution in the kernel  */
+            flag_resolve = 0;
+            break;
         }
 
         case 't': {
-                /* Request transparent snapshotting */
-                flag_transparent = 1;
-                break;
+            /* Request transparent snapshotting */
+            flag_transparent = 1;
+            break;
         }
 
         case 'l': {
-                /* Do not acquire applications layout files
-                 * with snapshots */
-                flag_bm_layout = 0;
-                break;
+            /* Do not acquire applications layout files with snapshots */
+            flag_bm_layout = 0;
+            break;
         }
 
         case 'h': {
-                /* Operate in overhead calculation mode. In
-                 * this mode, the scnapshot will be activated
-                 * in one-shot mode after the amount of time
-                 * specified with the -p parameter. Two
-                 * back-to-back snapshots will be collected. */
-                flag_overhead = 1;
-                break;
+            /*
+             * Operate in overhead calculation mode. In
+             * this mode, the snapshot will be activated
+             * in one-shot mode after the amount of time
+             * specified with the -p parameter. Two
+             * back-to-back snapshots will be collected.
+             */
+            flag_overhead = 1;
+            break;
         }
 
         case 'o': {
-                /* Custom output dir requested */
-                int path_len = strlen(optarg);
-                outdir = (char *)malloc(path_len+1);
-                strncpy(outdir, optarg, path_len+1);
-                flag_out = 1;
-                break;
+            /* Custom output dir requested */
+            int path_len = strlen(optarg);
+            outdir = (char *)malloc(path_len+1);
+            strncpy(outdir, optarg, path_len+1);
+            flag_out = 1;
+            break;
         }
 
         default: {
-                /* '?' */
-                fprintf(stderr, USAGE_STR, argv[0]);
-                exit(EXIT_FAILURE);
+            /* '?' */
+            fprintf(stderr, USAGE_STR, argv[0]);
+            exit(EXIT_FAILURE);
         }
         }
     }
@@ -297,8 +300,10 @@ static inline int open_mod(void) {
     return fd;
 }
 
-/* Use user-specified parameters to configure the kernel module for
- * acquisition */
+/*
+ * Use user-specified parameters to configure the kernel module for
+ * acquisition
+ */
 int config_shutter(void) {
     int dumpcache_fd;
     int err;
@@ -306,31 +311,34 @@ int config_shutter(void) {
 
     dumpcache_fd = open_mod();
 
-    /* Whatever is the mode, reset the sample pointer to start
-     * with. */
+    /*
+     * Whatever is the mode, reset the sample pointer to start with.
+     */
     cmd |= DUMPCACHE_CMD_SETBUF_SHIFT;
 
-    /* If we want transparent mode, request buffer auto-increment
-     * in the kernel */
+    /*
+     * If we want transparent mode, request buffer auto-increment
+     * in the kernel
+     */
     if (flag_transparent == 1) {
-            cmd |= DUMPCACHE_CMD_AUTOINC_EN_SHIFT;
+        cmd |= DUMPCACHE_CMD_AUTOINC_EN_SHIFT;
     } else {
-            cmd |= DUMPCACHE_CMD_AUTOINC_DIS_SHIFT;
+        cmd |= DUMPCACHE_CMD_AUTOINC_DIS_SHIFT;
     }
 
     /* Disable address resolution if requested by the user */
     if (flag_resolve == 1) {
-            cmd |= DUMPCACHE_CMD_RESOLVE_EN_SHIFT;
+        cmd |= DUMPCACHE_CMD_RESOLVE_EN_SHIFT;
     } else {
-            cmd |= DUMPCACHE_CMD_RESOLVE_DIS_SHIFT;
+        cmd |= DUMPCACHE_CMD_RESOLVE_DIS_SHIFT;
     }
 
     err = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
     if (err) {
-            perror("Shutter configuration command failed");
-            fflush(stdout);
-            fprintf(stderr, "ioctl failed: err=%d\n", err);
-            exit(EXIT_FAILURE);
+        perror("snapshot configuration command failed");
+        fflush(stdout);
+        fprintf(stderr, "ioctl failed: err=%d\n", err);
+        exit(EXIT_FAILURE);
     }
 
     printf("Module config OKAY!\n");
@@ -435,8 +443,8 @@ void copy_file(const char *src, const char *dst) {
     int dst_fd = open(dst, O_RDWR | O_CREAT | O_TRUNC, 0666);
 
     if (dst_fd < 0) {
-            perror("Unable to save maps file.");
-            exit(EXIT_FAILURE);
+        perror("Unable to save maps file.");
+        exit(EXIT_FAILURE);
     }
 
     while ((num_read = read(src_fd, buf, BUF_SIZE)) > 0) {
@@ -450,16 +458,19 @@ void copy_file(const char *src, const char *dst) {
     close(dst_fd);
 }
 
-/* Ask the kernel to acquire a new snapshot */
+/*
+ * Ask the kernel to acquire a new snapshot
+ */
 void acquire_new_snapshot(void) {
     int dumpcache_fd = open_mod();
     int retval;
 
-    retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_SNAPSHOT, 0);
+    // fprintf(stderr, "acquire new snapshot\n");
+    retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_SNAPSHOT, observation);
     if (retval < 0) {
-            fprintf(stderr, "Return was %d\n", retval);
-            perror("Unable to commandeer new snapshot acquisition");
-            exit(EXIT_FAILURE);
+        fprintf(stderr, "Return was %d\n", retval);
+        perror("Unable to commandeer new snapshot acquisition");
+        exit(EXIT_FAILURE);
     }
 
     close(dumpcache_fd);
@@ -497,23 +508,25 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
         kill(pids[i], SIGSTOP);
     }
 
-    /* Skip all of this in mimic mode */
     if (!flag_mimic) {
-        /* Ask the module to acquire a new snapshot.*/
         acquire_new_snapshot();
-
-        /* Unless we are in transparent mode, save cache dump
-         * to file right away */
+        /*
+         * Unless we are in transparent mode, save cache dump to file right away.
+         */
         if (!flag_transparent) {
             sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
-            /* In non-transparent mode, no autoincrement
+            /*
+             * In non-transparent mode, no autoincrement
              * is selected in the kernel, so we always
-             * read the first buffer. */
+             * read the first buffer.
+             */
             read_cache_to_file(__cmd, 0);
         }
     }
 
-    /* Acquire maps files if layout acquisition is selected */
+    /*
+     * Acquire maps files if layout acquisition is selected
+     */
     if (flag_bm_layout) {
         /* Initiate a /proc/pid/maps dump to file */
         for (i = 0; i < bm_count; ++i) {
@@ -528,11 +541,12 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
         kill(pids[i], SIGCONT);
     }
 
-    /* Keep track of the total number of snapshots acquired so far */
-    ++snapshots;
+    snapshots += 1;
 
-    /* If this is snapshot #1, then just acquire another snapshot
-     * right away and that will be it. */
+    /*
+     * If this is snapshot #1, then just acquire another snapshot
+     * right away and that will be it.
+     */
     if (flag_overhead) {
         if (snapshots == 1) {
             /* Set timer's next activation */
@@ -547,7 +561,9 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
     }
 }
 
-/* Handler for SIGRTMAX-1 signal to initiate new snapshot */
+/*
+ * Handler for SIGRTMAX-1 signal to initiate new snapshot
+ */
 void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
     (void)signo;
     (void)extra;
@@ -559,48 +575,48 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
 
     /* Should happen only once */
     if (!__cmd) {
-            __cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
+        __cmd = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
     }
 
     /* Send SIGSTOP to all the children (skip in async mode) */
     for (i = 0; i < bm_count && !flag_async; ++i) {
-            kill(pids[i], SIGSTOP);
+        kill(pids[i], SIGSTOP);
     }
 
-    /* Skip all of this in mimic mode */
     if (!flag_mimic) {
-            /* Ask the module to acquire a new snapshot.*/
-            acquire_new_snapshot();
-
-            /* Unless we are in transparent mode, save cache dump
-             * to file right away */
-            if (!flag_transparent) {
-                    sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
-
-                    /* In non-transparent mode, no autoincrement
-                     * is selected in the kernel, so we always
-                     * read the first buffer. */
-                    read_cache_to_file(__cmd, 0);
-            }
+        acquire_new_snapshot();
+        /*
+         * Unless we are in transparent mode, save cache dump to file right away.
+         */
+        if (!flag_transparent) {
+            sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
+            /*
+             * In non-transparent mode, no autoincrement
+             * is selected in the kernel, so we always
+             * read the first buffer.
+             */
+            read_cache_to_file(__cmd, 0);
+        }
     }
 
     /* Acquire maps files if layout acquisition is selected */
     if (flag_bm_layout) {
-            /* Initiate a /proc/pid/maps dump to file */
-            for (i = 0; i < bm_count; ++i) {
-                    sprintf(__cmd, "%s/%d-%d.txt", outdir, pids[i], snapshots);
-                    sprintf(__proc_entry, "/proc/%d/maps", pids[i]);
-                    copy_file(__proc_entry, __cmd);
-            }
+        /* Initiate a /proc/pid/maps dump to file */
+        for (i = 0; i < bm_count; ++i) {
+            sprintf(__cmd, "%s/%d-%d.txt", outdir, pids[i], snapshots);
+            sprintf(__proc_entry, "/proc/%d/maps", pids[i]);
+            copy_file(__proc_entry, __cmd);
+        }
     }
 
-    /* Resume all the children with SIGCONT (skip in async mode) */
+    /*
+     * Resume all the children with SIGCONT (skip in async mode)
+     */
     for (i = 0; i < bm_count && !flag_async; ++i) {
-            kill(pids[i], SIGCONT);
+        kill(pids[i], SIGCONT);
     }
 
-    /* Keep track of the total number of snapshots acquired so far */
-    ++snapshots;
+    snapshots += 1;
 }
 
 /* Function to complete execution */
@@ -613,8 +629,10 @@ void wrap_up(void) {
 
     pathname = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
 
-    /* If we are running in transparent mode, now it's the time to
-     * dump all the snapshots. */
+    /*
+     * If we are running in transparent mode, now it's the time to
+     * dump all the snapshots.
+     */
     if (flag_transparent) {
         int dumpcache_fd = open_mod();
         int retval;
@@ -684,8 +702,8 @@ void set_realtime(int prio) {
 
     /* Attempt to set the scheduler for current process */
     if (sched_setscheduler(0, SCHED_FIFO, &sp) < 0) {
-            perror("Unable to set SCHED_FIFO scheduler");
-            // exit(EXIT_FAILURE);
+        perror("Unable to set SCHED_FIFO scheduler");
+        // exit(EXIT_FAILURE);
     }
 
     /* Set CPU affinity if isolate flag specified */
@@ -722,7 +740,6 @@ void change_rt_prio(int prio) {
         int i, nprocs;
 
         nprocs = get_nprocs();
-
         CPU_ZERO(&set);
 
         /* default to CPU x for parent */
@@ -748,8 +765,8 @@ void set_non_realtime(void) {
 
     /* Attempt to set the scheduler for current process */
     if (sched_setscheduler(0, SCHED_OTHER, &sp) < 0) {
-            perror("Unable to set SCHED_OTHER scheduler");
-            exit(EXIT_FAILURE);
+        perror("Unable to set SCHED_OTHER scheduler");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -812,7 +829,7 @@ void wait_completion(void) {
 
     /* Start timer only if we are operating in periodic mode */
     if (flag_periodic) {
-            timer_settime(timer, 0, &it, NULL);
+        timer_settime(timer, 0, &it, NULL);
     }
 
     printf("Setup completed!\n");
@@ -820,9 +837,8 @@ void wait_completion(void) {
     /* Wait for any signal */
     sigemptyset(&waitmask);
     while (!done) {
-            sigsuspend(&waitmask);
+        sigsuspend(&waitmask);
     }
-
     timer_delete(timer);
 }
 
@@ -831,7 +847,9 @@ void wait_completion(void) {
 
 std::set<pid_t> seen_pidset;
 
-/* Entry function to interface with the kernel module via the proc interface */
+/*
+ * Entry function to interface with the kernel module via the proc interface
+ */
 void read_cache_to_file(const char *filename, int index) {
     int dumpcache_fd;
     union cache_sample *cache_contents = NULL;
@@ -843,23 +861,22 @@ void read_cache_to_file(const char *filename, int index) {
     }
 
     if (!cache_contents) {
-        cache_contents = (union cache_sample *)malloc(
-            sizeof(union cache_sample));
+        cache_contents = (union cache_sample *)malloc(sizeof(union cache_sample));
     }
 
     dumpcache_fd = open_mod();
 
     if (flag_transparent) {
-        /* Make sure to ask the kernel for the buffer at the
-         * specific index. */
+        /*
+         * Make sure to ask the kernel for the buffer at the specific index.
+         */
         int retval;
-        unsigned long cmd = DUMPCACHE_CMD_SETBUF_SHIFT;
-
+        unsigned long cmd = 0;
+        cmd |= DUMPCACHE_CMD_SETBUF_SHIFT;
         cmd |= DUMPCACHE_CMD_VALUE(index);
-
         retval = ioctl(dumpcache_fd, DUMPCACHE_CMD_CONFIG, cmd);
         if (retval < 0) {
-            perror("Unable to retrieve current buffer index from shutter");
+            perror("Unable to retrieve current buffer index from dumpcache");
             exit(EXIT_FAILURE);
         }
     }
@@ -870,14 +887,22 @@ void read_cache_to_file(const char *filename, int index) {
     }
 
     std::set<pid_t> pidset;
-    if (observation == DUMPCACHE_DO_L1) {
+    switch (observation) {
+    case DUMPCACHE_DO_L1:
         print_Cortex_L1_Insn(outfp,
             (const struct Cortex_L1_I_Insn_Cache *)cache_contents,
             &pidset);
-    } else if (observation == DUMPCACHE_DO_L2) {
+        break;
+    case DUMPCACHE_DO_L2:
         print_Cortex_L2_Unif(outfp,
             (const struct Cortex_L2_Unif_Cache *)cache_contents,
             &pidset);
+        break;
+    default:
+        fflush(stdout);
+        fprintf(stderr, "unknown observation semantics of %d\n", observation);
+        exit(EXIT_FAILURE);
+        break;
     }
     fclose(outfp);
     close(dumpcache_fd);

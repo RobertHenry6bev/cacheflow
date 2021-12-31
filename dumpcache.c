@@ -157,7 +157,7 @@ static inline union cache_sample * sample_from_index(uint32_t ind) {
     }
 }
 
-static int acquire_snapshot(void) {
+static int acquire_snapshot(int observation) {
     int processor_id;
     struct cpumask cpu_mask;
 
@@ -178,14 +178,23 @@ static int acquire_snapshot(void) {
     on_each_cpu_mask(&cpu_mask, cpu_stall, NULL, 0);
 
     /* Perform cache snapshot */
-    if (0) {
+    switch (observation) {
+    case DUMPCACHE_DO_L1:
+      // pr_info("DUMPCACHE_DO_L1");
       get_Cortex_L1_Insn();
       fill_Cortex_L1_Insn();
-    } else if (1) {
-      // pr_info("start get_Cortex_L2_Unif\n");
+      break;
+
+    case DUMPCACHE_DO_L2:
+      // pr_info("DUMPCACHE_DO_L2");
       get_Cortex_L2_Unif();
-      // pr_info("start fill_Cortex_L2_Unif\n");
       fill_Cortex_L2_Unif();
+      break;
+
+    default:
+      // memset(cur_sample, 0, sizeof(*cur_sample));  // perhaps
+      pr_info("Unknown observation %d", observation);
+      break;
     }
 
     preempt_enable();
@@ -243,7 +252,7 @@ static int dumpcache_config(unsigned long cmd) {
 /* The IOCTL interface of the proc file descriptor is used to pass
  * configuration commands */
 static long dumpcache_ioctl(struct file *file,
-  unsigned int ioctl, unsigned long arg) {
+        unsigned int ioctl, unsigned long arg) {
     long err;
     TRACE_IOCTL pr_info("dumpcache_ioctl ioctl=%d arg=%ld {\n", ioctl, arg);
 
@@ -253,7 +262,7 @@ static long dumpcache_ioctl(struct file *file,
             break;
 
     case DUMPCACHE_CMD_SNAPSHOT:
-            err = acquire_snapshot();
+            err = acquire_snapshot(arg);
             break;
 
     default:
@@ -465,13 +474,19 @@ void phys_to_pid(u64 pa, struct phys_to_pid_type *pidinfo) {
 
     TRACE_IOCTL pr_info("calling phys_to_page with 0x%016llx\n", pa);
 
-    all_count++;
+    //
+    // Trip wire for counting the number of address translations
+    // that fall within the hardware buffer.
+    // This happened when I was using _WB semantics to the I/O memory, not _WT
+    //
+    all_count += 1;
     if ((all_count % 10000) == 0) {
-      pr_info("phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
+      TRACE_IOCTL pr_info(
+        "phys_to_page all_count=%9d buf_count=%9d or ~%02d%%\n",
         all_count, buf_count, (100 * buf_count)/all_count);
     }
     if (CACHE_BUF_BASE <= pa && pa < CACHE_BUF_END) {
-      buf_count++;
+      buf_count += 1;
       pidinfo->addr = pa;  // perhaps
       pidinfo->pid = -1;
       return;

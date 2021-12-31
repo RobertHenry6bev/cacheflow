@@ -30,13 +30,13 @@ get_L1Itag(u32 way, u32 va, uint32_t *raw_values) {
     | ((way & 0x3) << 18)
     | ((va << 6) & MASK2(13, 6))
     ;  // NOLINT
-  // raw_values[0] = 0;
-  // raw_values[1] = 0;
+  raw_values[0] = 0;
+  raw_values[1] = 0;
   asm_ramindex_msr("get_L1Itag", ramindex);
-  asm_ramindex_insn_mrs(raw_values, 0x03);  // get raw_values[0], raw_values[1]
+  asm_ramindex_insn_mrs(raw_values, 0x03);  // gets raw_values[0], raw_values[1]
 }
 
-static inline void  __attribute__((always_inline))
+static inline void __attribute__((always_inline))
 get_L2tag(u32 way, u32 set, struct Cortex_L2_Unif_Tag *p) {
     u32 ramindex = 0
       | (0x10 << 24)  // magic RAM number
@@ -124,6 +124,7 @@ static int fill_Cortex_L1_Insn(void) {
       struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
       int valid = (p->tag.raw[1] >> 1) & 0x1;
       int ident = (p->tag.raw[1] >> 0) & 0x1;
+      p->tag.pid = 0xaaa;
       (void)ident;
       if (valid) {
         struct phys_to_pid_type process_data_struct;
@@ -222,8 +223,8 @@ void print_Cortex_L1_Insn(FILE *outfp,
             fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
                 way, set,
                 p->tag.pid, p->tag.pid,
-                p->tag.raw[1],
-                p->tag.raw[0]);
+                p->tag.raw[1],   // bottom 2 bits: valid bit; non-secure id
+                p->tag.raw[0]);  // physical address tag [43:12]
             const char *sep = ",";
             for (pair = 0; pair < 4*2; pair++) {
                 const struct Cortex_L1_I_Insn_Pair *p =

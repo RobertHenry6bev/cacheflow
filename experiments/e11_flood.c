@@ -45,19 +45,19 @@ uint32_t *get_aligned_code(size_t pagesize, size_t npages) {
 #define NOP 0xd503201f
 #define BRANCH_PLUS_4 0x14000004
 
-uint32_t *fill_aligned_code(uint32_t *code, size_t ninsns) {
-  int i = 0;
+uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
+  uint32_t i = 0;
   pid_t pid = getpid();
   assert(ninsns >= 32);
 
   //
-  // for a loop iteration of 6M times:
+  // For a loop iteration of 6M times:
   // 6000000 == 6 * 1000 * 1000 == (0x5b<<16) + 0x8d80
   // We'll start with code that was compiled for 6000000,
   // and swap in the bits for "count".
   //
   {
-    uint32_t count = 6 * 1000 * 1000;
+    printf("count=%d\n", count);
     uint32_t upper = (count >> 16) & 0xffff;
     uint32_t lower = (count >>  0) & 0xffff;
     uint32_t movw = 0x5291b001;  // movw w1, #0x8d80
@@ -118,14 +118,20 @@ void lock_aligned_code(void *memptr, size_t pagesize, size_t npages) {
 int main(int argc, const char **argv) {
   int i;
   fooworker thread_arg[NTHREAD];
-  pthread_t *worker_thread = calloc(NTHREAD, sizeof(pthread_t));
+  pthread_t *worker_thread = (pthread_t *)calloc(NTHREAD, sizeof(pthread_t));
 
   size_t pagesize = getpagesize();
   size_t npages = 16;
   size_t ninsns = (pagesize * npages) / sizeof(uint32_t);
 
   uint32_t *code_block = get_aligned_code(pagesize, npages);
-  fill_aligned_code(code_block, ninsns);
+
+  int count = 6 * 1000 * 1000;
+  if (argc > 1) {
+      count = atoi(argv[1]);
+  }
+
+  fill_aligned_code(count, code_block, ninsns);
   lock_aligned_code(code_block, pagesize, npages);
   __builtin___clear_cache(code_block, code_block+ninsns);  // builtin for gcc
 
