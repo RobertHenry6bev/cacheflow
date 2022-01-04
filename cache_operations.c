@@ -135,12 +135,13 @@ static int fill_Cortex_L1_Insn(void) {
       int ident = (p->tag.raw[1] >> 0) & 0x1;
       (void)ident;
       if (p->pair[0].instruction[0] != 0x14000004) {
+        // TODO(robhenry): skip rows not from e11_flood.c
         p->tag.pid = 2;
         continue;
       }
       if (1) {
-        pr_info("\nxxx valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
-          valid, ident, p->tag.raw[1], p->tag.raw[0]);
+        pr_info("\nxxx L1 way=%d set=%d va=0x%016x valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
+          way, set, va, valid, ident, p->tag.raw[1], p->tag.raw[0]);
       }
       if (valid) {
         struct phys_to_pid_data pid_data;
@@ -150,6 +151,8 @@ static int fill_Cortex_L1_Insn(void) {
         //
         // bits va[13:12] are lost.
         // They overlap the bottom 2 bits of the phys address.
+        //
+        // TODO(robhenry): See Thomas Speier's email.
         //
         uint64_t pa_a = (p->tag.raw[0] << 12);   // bits 43:12
         uint64_t va_a = (va & MASK2(13, 0));
@@ -220,6 +223,7 @@ static int fill_Cortex_L2_Unif(void) {
             p->pa = (p->pa_tag & ~MASK2(15, 0)) | ((set << 6) & MASK2(15, 6));
 
             if (cache->way[way].set[set].quad[0].instruction[0] != 0x14000004) {
+                // TODO(robhenry): skip rows not from e11_flood.c
                 p->pid = 2;
                 continue;
             }
