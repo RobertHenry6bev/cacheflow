@@ -135,7 +135,7 @@ int main(int argc, const char **argv) {
   __builtin___clear_cache(code_block, code_block+ninsns);  // builtin for gcc
 
   fooworker func = (fooworker)code_block;
-  if (0) {
+  if (1) {
     func(1);
     printf("DONE!\n");
   } else {

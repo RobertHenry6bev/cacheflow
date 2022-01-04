@@ -10,7 +10,8 @@
 //
 //  Date: April 2020
 //
-// Extensively hacked on by robhenry@microsoft.com
+// Extensively hacked on by robhenry@microsoft.com,
+//   December 2021 and January 2022
 //
 
 #ifndef _GNU_SOURCE
@@ -38,7 +39,7 @@
     "-r\t" "Set real-time priorities. Parent has highest priority,\n" \
     "  \t" "the priority of the benchmarks is set in decreasing order.\n" \
     "\n" \
-    "-m\t" "Mimic only. No cache snapshotting but do everything else.\n" \
+    "-m\t" "Mimic only. No cache snapshoting but do everything else.\n" \
     "\n" \
     "-a\t" "Asynchronous mode. Do not send SIGTOP/SIGCONT to benchmarks.\n" \
     "\n" \
@@ -138,84 +139,73 @@ int main(int argc, char **argv) {
 
     while ((opt = getopt(argc, argv, "-rmafio:p:ntlh12")) != -1) {
         switch (opt) {
-        case 1: {
+        case 1:
             /* Benchmark to run parameter */
             bms[bm_count++] = argv[optind - 1];
             break;
-        }
 
-        case '1': {
+        case '1':
            observation = DUMPCACHE_DO_L1;
            break;
-        }
 
-        case '2': {
+        case '2':
            observation = DUMPCACHE_DO_L2;
            break;
-        }
 
-        case 'r': {
+        case 'r':
             /* RT scheduler requested */
             flag_rt = 1;
             break;
-        }
 
-        case 'a': {
+        case 'a':
             /* Asynchronous requested */
             flag_async = 1;
             break;
-        }
 
-        case 'm': {
+        case 'm':
             /* Mimic only --- no cache dumps performed */
             flag_mimic = 1;
             break;
-        }
 
-        case 'i': {
+        case 'i':
             /*
              * Isolate: make sure child processes are not
-             * allowed to run on the same CPU as the
-             * parent
+             * allowed to run on the same CPU as the parent.
              */
             flag_isol = 1;
             break;
-        }
 
-        case 'f': {
+        case 'f':
             /* Override content of outdir !!! CAREFUL */
             flag_force = 1;
             break;
-        }
 
-        case 'p': {
+        case 'p':
             /* Set custom sampling period in ms */
             snap_period_ms = strtol(optarg, NULL, 10);
             if (snap_period_ms == 0) {
                 flag_periodic = 0;
             }
             break;
-        }
 
-        case 'n': {
+        case 'n':
             /* Disable address resolution in the kernel  */
             flag_resolve = 0;
             break;
-        }
 
-        case 't': {
-            /* Request transparent snapshotting */
+        case 't':
+            /* Request transparent snapshoting */
             flag_transparent = 1;
             break;
-        }
 
-        case 'l': {
-            /* Do not acquire applications layout files with snapshots */
+        case 'l':
+            /*
+             * Do not acquire application's layout files with snapshots
+             */
             flag_bm_layout = 0;
             break;
-        }
 
-        case 'h': {
+        case 'h':
             /*
              * Operate in overhead calculation mode. In
              * this mode, the snapshot will be activated
@@ -225,22 +215,21 @@ int main(int argc, char **argv) {
              */
             flag_overhead = 1;
             break;
-        }
 
-        case 'o': {
+        case 'o':
             /* Custom output dir requested */
-            int path_len = strlen(optarg);
-            outdir = (char *)malloc(path_len+1);
-            strncpy(outdir, optarg, path_len+1);
-            flag_out = 1;
+            {
+              int path_len = strlen(optarg);
+              outdir = (char *)malloc(path_len+1);
+              strncpy(outdir, optarg, path_len+1);
+              flag_out = 1;
+            }
             break;
-        }
 
-        default: {
+        default:
             /* '?' */
             fprintf(stderr, USAGE_STR, argv[0]);
             exit(EXIT_FAILURE);
-        }
         }
     }
 
@@ -367,7 +356,7 @@ void launch_benchmarks(void) {
             }
             /* Set SCHED_FIFO priority if necessary */
             if (flag_rt) {
-                change_rt_prio(max_prio -1 -i);
+                change_rt_prio(max_prio - 1 - i);
             } else {
                 set_non_realtime();
             }
@@ -507,19 +496,25 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
     }
 
     if (!flag_mimic) {
-        acquire_new_snapshot();
-        /*
-         * Unless we are in transparent mode, save cache dump to file right away.
-         */
-        if (!flag_transparent) {
-            sprintf(__cmd, "%s/cachedump%04d.csv", outdir, snapshots);
-            /*
-             * In non-transparent mode, no autoincrement
-             * is selected in the kernel, so we always
-             * read the first buffer.
-             */
-            read_cache_to_file(__cmd, 0);
+        int old_observation = observation;
+        for (observation = DUMPCACHE_DO_L1; observation <= DUMPCACHE_DO_L2; observation++) {
+          acquire_new_snapshot();
+          /*
+           * Unless we are in transparent mode,
+           * save cache dump to file right away.
+           */
+          if (!flag_transparent) {
+              sprintf(__cmd, "%s/cachedump.%d.%04d.csv",
+                  outdir, observation, snapshots);
+              /*
+               * In non-transparent mode, no autoincrement
+               * is selected in the kernel, so we always
+               * read the first buffer.
+               */
+              read_cache_to_file(__cmd, 0);
+          }
         }
+        observation = old_observation;
     }
 
     /*
@@ -567,7 +562,7 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
     (void)signo;
     (void)extra;
 
-    static char * __cmd = NULL;
+    static char *__cmd = NULL;
     static char __proc_entry[MALLOC_CMD_PAD];
 
     int i;
@@ -606,14 +601,12 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
             copy_file(__proc_entry, __cmd);
         }
     }
-
     /*
      * Resume all the children with SIGCONT (skip in async mode)
      */
     for (i = 0; i < bm_count && !flag_async; ++i) {
         kill(pids[i], SIGCONT);
     }
-
     snapshots += 1;
 }
 

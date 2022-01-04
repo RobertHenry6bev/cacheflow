@@ -7,6 +7,7 @@ WHICH_CACHE = 1
 PERIOD = 5
 PERIOD = 500
 PERIOD = 50
+PERIOD = 500
 
 VICTIM = e10_benchmark.x
 VICTIM_ARG =
@@ -19,12 +20,22 @@ VICTIM_ARG = 500
 
 # 120000 is about 2 seconds
 VICTIM = e11_flood.x
+VICTIM_ARG = 8000
+VICTIM_ARG = 80000
 VICTIM_ARG = 120000
+VICTIM_ARG = 1200000
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
-	sudo ./snapshot.x -l -$(WHICH_CACHE) -p $(PERIOD) -f -o $(PWD)/data \
+	sudo \
+          /usr/bin/taskset --cpu-list 2 \
+          ./snapshot.x \
+          -l \
+          -$(WHICH_CACHE) \
+          -p $(PERIOD) \
+          -f \
+          -o $(PWD)/data \
           "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
 	sudo chown $(USER):$(USER) data/*
 
@@ -111,6 +122,7 @@ CPPLINT_ARGS = \
   --filter=-runtime/int,-readability/casting,-runtime/printf \
   $(NULL)
 CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
+
 lint: $(CPPLINT) *.c *.h
 	python3 $(CPPLINT) $(CPPLINT_ARGS) *.c *.h
 
