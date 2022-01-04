@@ -3,6 +3,8 @@
 """
 Analyze data held in cache looking for long runs of instructions
 that span many 16-instruction wide cache lines.
+#
+This is/was used to find duplicate instruction strings in the cache.
 """
 
 # pylint: disable=consider-using-enumerate
@@ -29,6 +31,7 @@ class RunCountAccumulator:
 
     def __str__(self):
         return "{%d, %s, %s}" % (self.count, self.pids, ["0x%016x" % (x,) for x in self.addrs],)
+
     def incr(self, _key, pid, addr):
         """Increment ourselves"""
         self.count += 1

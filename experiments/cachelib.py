@@ -1,13 +1,35 @@
 """Library of miscellaneous cachedump analysis routines."""
+# pylint: disable=no-self-use
+
 import re
 import os
 
 import capstone
 
-class L2CacheConfig:
+class L1CacheConfig:
+    """Configuration and csv parameters for Cortex A72 per-core L1 cache."""
     def __init__(self):
         pass
     def get_field_names(self):
+        """Return field names for the csv file written by ../cache_operations.c"""
+        return [] \
+          + ["way", "set"] \
+          + ["pid", "pid_x"] \
+          + ["t1" , "phys_addr"] \
+          + ["d_%02d" % (i,) for i in range(0, 16)]
+    def get_nway(self):
+        """Return number of ways in the cache."""
+        return 3
+    def get_nset(self):
+        """Return number of sets."""
+        return 256
+
+class L2CacheConfig:
+    """Configuration and csv parameters for Cortex A72 unified L2 cache"""
+    def __init__(self):
+        pass
+    def get_field_names(self):
+        """Return field names for the csv file written by ../cache_operations.c"""
         return [] \
           + ["check"] \
           + ["way", "set"] \
@@ -17,31 +39,20 @@ class L2CacheConfig:
           + ["pa"] \
           + ["d_%02d" % (i,) for i in range(0, 16)]
     def get_nway(self):
+        """Return number of ways in the cache."""
         return 16
     def get_nset(self):
+        """Return number of sets."""
         return 1024
 
-class L1CacheConfig:
-    def __init__(self):
-        pass
-    def get_field_names(self):
-        return [] \
-          + ["way", "set"] \
-          + ["pid", "pid_x"] \
-          + ["t1" , "phys_addr"] \
-          + ["d_%02d" % (i,) for i in range(0, 16)]
-    def get_nway(self):
-        return 3
-    def get_nset(self):
-        return 256
-
 def configuration_factory(kind):
+    """Return an object describing the cache."""
     if kind == "L1":
         return L1CacheConfig()
     if kind == "L2":
         return L2CacheConfig()
     assert False, "Unknown cache config %s" % (kind,)
-    
+    return None
 
 RE_FILENAME_CMDLINE = re.compile(r'^(\d+)\.cmdline\.txt')
 def read_saved_command_info(data_path):
@@ -53,14 +64,15 @@ def read_saved_command_info(data_path):
         match = RE_FILENAME_CMDLINE.match(input_file_name)
         if match:
             pid = int(match.group(1))
-            with open("./data/" + input_file_name, "rb") as fd:
-                cmdline_raw = fd.read()
+            with open("./data/" + input_file_name, "rb") as input_fd:
+                cmdline_raw = input_fd.read()
                 raw_splits = cmdline_raw.split(b'\0')
                 name = raw_splits[0].decode()
                 path_splits = name.split("/")
                 base_name = path_splits[-1]
                 space_splits = base_name.split(" ")
-                pid_map[pid] = space_splits[0]
+                pname = space_splits[0].trim(":")  # for sshd:
+                pid_map[pid] = pname
     return pid_map
 
 class InstructionDecoder:
