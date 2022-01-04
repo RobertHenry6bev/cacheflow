@@ -1,7 +1,9 @@
 #! /usr/bin/python3
 
 """
-Write a png file which highlights where spoecific instructions are.
+Write a png file which highlights where specific instructions are.
+
+Also, if --stats flag is given, gather statistics describing dwell times.
 """
 
 # pylint: disable=too-many-arguments
@@ -19,26 +21,25 @@ import png  # sudo apt-get install python3-pip ; pip3 install pypng
 import cachelib
 
 class LineStats:
-    """Statistics on a sequential run of instructions."""
+    """Statistics on vectors of instruction, as from a single cache line
+    holding 16 instructions.
+    This is used to find dwell times,
+    and other lifetime statistics.
+    """
     def __init__(self):
         self.ivect_to_count = {}  # maps from instruction vector to count
         self.runlg_to_count = {}
         self.last_ivect = "xx"
-        self.run_lg = -1
+        self.dwell_duration = -1
         self.nobservations = 0
-        self.max_run_lg = 0
+        self.max_dwell_duration = 0
         self.max_dwell_insns = "xx"
+
     def add(self, insns):
         """Add a run of instructions into our analysis."""
         self.nobservations += 1
-        if isinstance(insns, list):
-            canon = ""
-            sep = ""
-            for insn in insns:
-                canon += sep
-                canon += "0x%08x" % (insn,)
-                sep = ","
-            insns = canon
+        assert isinstance(insns, list)
+        insns = tuple(insns)
         if insns not in self.ivect_to_count:
             self.ivect_to_count[insns] = 0
         self.ivect_to_count[insns] += 1
@@ -46,29 +47,36 @@ class LineStats:
         # Manage runlengths (cache line did not appear to change contents)
         #
         if self.last_ivect == insns:
-            self.run_lg += 1
-            if self.run_lg > self.max_run_lg:
-                self.max_run_lg = self.run_lg
+            self.dwell_duration += 1
+            if self.dwell_duration > self.max_dwell_duration:
+                self.max_dwell_duration = self.dwell_duration
                 self.max_dwell_insns = insns
         else:
-            if self.run_lg > 0:
-                if self.run_lg not in self.runlg_to_count:
-                    self.runlg_to_count[self.run_lg] = 0
-                self.runlg_to_count[self.run_lg] += 1
+            if self.dwell_duration > 0:
+                if self.dwell_duration not in self.runlg_to_count:
+                    self.runlg_to_count[self.dwell_duration] = 0
+                self.runlg_to_count[self.dwell_duration] += 1
             #
             self.last_ivect = insns
-            self.run_lg = 1
+            self.dwell_duration = 1
 
-    def dump(self):
+    def dump(self, aggregate=None):
         """Dump ourself."""
-        for insns, count in sorted(self.ivect_to_count.items(),
+        do_verbose = False
+        if do_verbose:
+            for insns, count in sorted(self.ivect_to_count.items(),
+                    reverse=True, key=lambda x:x[1]):
+                print("%4d %s" % (count , insns,))
+        if do_verbose:
+            print("max_dwell_duration=%d max_dwell=%s" % (
+                self.max_dwell_duration, self.max_dwell_insns,))
+        for dwell_duration, count in sorted(self.runlg_to_count.items(),
                 reverse=True, key=lambda x:x[1]):
-            print("%4d %s" % (count , insns,))
-        print("max_run_lg=%d max_dwell=%s" % (
-            self.max_run_lg, self.max_dwell_insns,))
-        for run_lg, count in sorted(self.runlg_to_count.items(),
-                reverse=True, key=lambda x:x[1]):
-            print("run_lg=%3d count=%d" % (run_lg, count,))
+            print("dwell_duration=%3d count=%d" % (dwell_duration, count,))
+            if aggregate is not None:
+                if dwell_duration not in aggregate:
+                    aggregate[dwell_duration] = 0
+                aggregate[dwell_duration] += count
 
 def plot_insn_bitmap():
     """Plot the L1 or L2 Cache as a bitmap."""
@@ -120,10 +128,11 @@ def plot_insn_bitmap():
     pid_count = {}
 
     simple_line_stats = LineStats()
+
     wayset_line_stats = {}
-    for way in range(0, cache_info.get_nway()):
-        for seti in range(0, cache_info.get_nset()):
-            wayset_line_stats[(way, seti)] = LineStats()
+    for cache_way in range(0, cache_info.get_nway()):
+        for cache_set in range(0, cache_info.get_nset()):
+            wayset_line_stats[(cache_way, cache_set,)] = LineStats()
 
     given_png_file_name = args.output
     for input_file_name in args.rest:
@@ -143,12 +152,21 @@ def plot_insn_bitmap():
                     consume_csv_file(cache_info, input_fd, args, png_file,
                         pid_color, pid_count,
                         simple_line_stats, wayset_line_stats)
+
     if args.stats:
+        print("Start simple_line_stats {")
         simple_line_stats.dump()
-        for way in range(0, cache_info.get_nway()):
-            for seti in range(0, cache_info.get_nset()):
-                print("------------- %3d %3d" % (way, seti,))
-                wayset_line_stats[(way, seti)].dump()
+        print("End   simple_line_stats }")
+
+        aggregate = {}  # map from dwell duration to count
+        print("Start wayset_line_stats {")
+        for cache_way in range(0, cache_info.get_nway()):
+            for cache_set in range(0, cache_info.get_nset()):
+                print("------------- Stats for cache_way %3d set %3d" % (cache_way, cache_set,))
+                wayset_line_stats[(cache_way, cache_set,)].dump(aggregate)
+        print("End   wayset_line_stats }")
+        for dwell_duration, count in sorted(aggregate.items()):
+            print("%3d: %3d" % (dwell_duration, count,))
 
 def consume_csv_file(cache_info, input_fd, args, png_file,
       pid_color, pid_count,
@@ -162,7 +180,7 @@ def consume_csv_file(cache_info, input_fd, args, png_file,
     contents = {}
     pids = {}
     for row in reader:
-        wayset = (int(row["way"]), int(row["set"]))
+        wayset = (int(row["way"]), int(row["set"]),)
         insns = [int(row["d_%02d" % (i,)], 16) for i in range(0, 16)]
         contents[wayset] = insns
         wayset_line_stats[wayset].add(insns)
@@ -179,11 +197,11 @@ def consume_csv_file(cache_info, input_fd, args, png_file,
     #
     png_matrix = []
     xwidth = 0
-    for seti in range(0, cache_info.get_nset()):
+    for cache_set in range(0, cache_info.get_nset()):
         for _y in range(0, args.scale):
             xwidth = 0
             png_row = []
-            for way in range(0, cache_info.get_nway()):
+            for cache_way in range(0, cache_info.get_nway()):
                 #
                 # Draw a vertical blue bar at the left end
                 #
@@ -197,7 +215,7 @@ def consume_csv_file(cache_info, input_fd, args, png_file,
                             png_row.append(0xff)
                         xwidth += 1
                 #
-                wayset = (way, seti)
+                wayset = (cache_way, cache_set,)
                 insns = contents[wayset]
                 pid = pids[wayset]
                 if pid not in pid_count:

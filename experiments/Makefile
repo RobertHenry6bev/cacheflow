@@ -61,10 +61,10 @@ clean:
 	rm -f data/*
 	rm -f __pycache__
 
+CANON_CSV_FILE = ./data/cachedump0030.csv
 MAX_FILES = 50
 MAX_FILES = 5000
 ALL_CSV := $(shell ls data/*.csv                | head -$(MAX_FILES))
-# ALL_CSV := $(shell find data/*.csv -size 3883008c | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
 DURATION_NUM=10
@@ -86,6 +86,8 @@ data/out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
           yuv420p \
           $@
 
+.PHONY: all_png
+all_png: png_all
 .PHONY: png_all
 png_all: $(ALL_PNG) Makefile
 
@@ -101,16 +103,31 @@ plot_insn: data/cachedump0000.png
 PNG_SCALE = 2
 data/%.png: data/%.csv plot_insn.py Makefile
 	python3 plot_insn.py \
+          --kind L$(WHICH_CACHE) \
           --scale $(PNG_SCALE) \
           --show_pid \
+          --stats \
           --output $@ \
           $<
+
 data/all.png.T: data/*.csv plot_insn.py Makefile
 	python3 plot_insn.py \
+          --kind L$(WHICH_CACHE) \
           --scale $(PNG_SCALE) \
           --show_pid \
+          --stats \
           data/*.csv
 	touch $@
+
+.PHONY: debug_line_stats
+debug_line_stats: $(CANON_CSV_FILE) plot_insn.py Makefile
+	python3 plot_insn.py \
+          --kind L$(WHICH_CACHE) \
+          --scale $(PNG_SCALE) \
+          --show_pid \
+          --stats \
+          --output junk.png \
+          $(ALL_CSV)
 
 .PHONY: pylint
 pylint: /usr/bin/pylint *.py
