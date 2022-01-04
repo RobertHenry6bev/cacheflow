@@ -36,8 +36,8 @@
 #define DUMPCACHE_CMD_TIMESTAMP_DIS_SHIFT (1 << (DUMPCACHE_CMD_VALUE_WIDTH + 8))
 
 enum DumpCacheWhichCache {
-    DUMPCACHE_DO_L1,
-    DUMPCACHE_DO_L2,
+    DUMPCACHE_DO_L1 = 1,
+    DUMPCACHE_DO_L2 = 2,
 };
 
 struct Cortex_L1_I_Tag {

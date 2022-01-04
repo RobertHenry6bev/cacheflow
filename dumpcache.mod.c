@@ -45,9 +45,9 @@ __used __section("__versions") = {
 	{ 0x4829a47e, "memcpy" },
 	{ 0x4c98d79b, "cpu_hwcap_keys" },
 	{ 0x14b89635, "arm64_const_caps_ready" },
+	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0xc5850110, "printk" },
 	{ 0x9688de8b, "memstart_addr" },
-	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0xb5b54b34, "_raw_spin_unlock" },
 	{ 0xba8fbd64, "_raw_spin_lock" },
 };
@@ -55,4 +55,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "FF8C5236EA53D8E1D11C6AE");
+MODULE_INFO(srcversion, "C898ACB8C33E0E415C737AD");

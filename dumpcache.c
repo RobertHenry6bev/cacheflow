@@ -343,8 +343,10 @@ static const struct file_operations dumpcache_ops = {
 // 4.3.64 in ARM Cortex-A57 MPCore Processor Technical Reference Manual
 // 4.3.64 in ARM Cortex-A72 MPCore Processor Technical Reference Manual
 //
-// Purpose: Read the instruction side L1 array contents into the IL1DATAn
-// register or read the data side L1 or L2 array contents into the
+// Purpose:
+// Read the instruction side L1 array contents into the
+// IL1DATAn register;
+// or read the data side L1 or L2 array contents into the
 // DL1DATAn register.
 //
 static inline void __attribute__((always_inline))
@@ -437,19 +439,22 @@ static bool rmap_one_func(struct page *page,
     return 0;
 }
 
+// done_func seems to get called once per valid pid map
 static int done_func(struct page *page) {
     pr_info("rmap_one_func done_func PPPP\n");
     return 1;
 }
 
+// TODO(robhenry): when we get a valid pid back, that's always
+// after we get an invalid translation.
 static bool invalid_func(struct vm_area_struct *vma, void *v_arg) {
     struct phys_to_pid_data *arg = (struct phys_to_pid_data *)v_arg;
-    pr_info("rmap_one_func invalid_func QQQQ\n");
-    arg->pid = (pid_t)99999;
+    // pr_info("rmap_one_func invalid_func QQQQ\n");
+    arg->pid = (pid_t)9889;
     return 0;
 }
 
-static void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
+static void phys_to_pid(const char *whence, u64 pa, struct phys_to_pid_data *pidinfo) {
     struct rmap_walk_control rwc;
 
     pidinfo->pid = 0;
@@ -464,7 +469,7 @@ static void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
 #if 0
     //
     // Trip wire for counting the number of address translations
-    // that fall within the hardware buffer.
+    // that fall within the buffer reserved to hold the cache contents.
     // This happened when I was using _WB semantics to the I/O memory, not _WT
     //
     {
@@ -485,22 +490,25 @@ static void phys_to_pid(u64 pa, struct phys_to_pid_data *pidinfo) {
       }
     }
 #endif
+
     if (rmap_walk_locked_func) {
       struct page *derived_page = phys_to_page(pa);
-      // TRACE_IOCTL
-      pr_info("rmap_walk_locked_func from "
+      TRACE_IOCTL
+      pr_info("rmap_walk_locked_func for %s from "
           "addr 0x%016llx derived_page 0x%px\n",
-          pa, derived_page);
+          whence, pa, derived_page);
+
       //
       // Kernel docs in source/mm/rmap.c says for rmap_walk_locked:
       //   ... Like rmap_walk,but caller holds relevant rmap lock ...
       // TODO(robhenry): Do we? where is the lock?
       //
       rmap_walk_locked_func(derived_page, &rwc);
+
       // TRACE_IOCTL
-      pr_info("rmap_walk_locked_func from "
+      pr_info("rmap_walk_locked_func for %s from "
           "addr 0x%016llx derived_page 0x%px returns pid=%d addr=0x%016llx\n",
-          pa, derived_page,
+          whence, pa, derived_page,
           pidinfo->pid, pidinfo->addr);
     }
 }
@@ -548,16 +556,18 @@ int init_module(void) {
     if (!rmap_walk_locked_func) {
             /* Attempt to find symbol */
             preempt_disable();
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)  // NOLINT
             mutex_lock(&module_mutex);  // {
 #endif
+
             rmap_walk_locked_func = (void*) lookup_name("rmap_walk_locked");
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,12,0)  // NOLINT
             mutex_unlock(&module_mutex);  // }
 #endif
             preempt_enable();
 
-            /* Have we found a valid symbol? */
             if (!rmap_walk_locked_func) {
                 pr_err("Unable to find rmap_walk_locked symbol. Aborting.\n");
                 return -ENOSYS;
