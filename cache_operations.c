@@ -152,8 +152,36 @@ static int fill_Cortex_L1_Insn(void) {
         // bits va[13:12] are lost.
         // They overlap the bottom 2 bits of the phys address.
         //
-        // TODO(robhenry): See Thomas Speier's email.
+        // email from Thomas Speier:
+        // I don't know all of the details of the A72, but overlapping
+        // of bits between virtual and physical addresses is fairly
+        // common.
         //
+        // This occurs when an implementation uses some number of
+        // translated virtual bits to index into a cache set and then
+        // physical bits to compare against the cache tags. A72 has a
+        // 3-way 48KB L1 I-cache with 64B/line which means the cache has
+        // 256 sets.
+        //
+        // VA[13:6] are used to index these 256 sets but
+        // [13:12] are translated bits when using a 4KB page. This means
+        // that PA[13:12] must be used to compare against the tags held
+        // in the cache to determine hit/miss.
+        //
+        // This technique results in set-aliasing meaning a given PA
+        // possibly could reside in one of four sets in the cache. There
+        // are multiple ways to handle aliasing like this. For caches
+        // that don't hold modified contents (such as I-caches), the
+        // implementation may simply permit the same PA to reside in
+        // more than one set concurrently.
+        //
+        // For ILDATA1, that register is used to capture the output from
+        // each of the L1 Tag and Data RAMs. It's likely that [3:2] are
+        // not muxed between the Tag and Data RAMs but simply always
+        // capture whatever is sitting on the output of the Data RAM,
+        // even when capturing Tag RAM values.
+        //
+
         uint64_t pa_a = (p->tag.raw[0] << 12);   // bits 43:12
         uint64_t va_a = (va & MASK2(13, 0));
         uint64_t comm = MASK2(13, 12);
