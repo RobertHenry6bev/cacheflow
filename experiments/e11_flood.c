@@ -8,6 +8,7 @@
 #include <inttypes.h>
 #include <malloc.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -48,6 +49,7 @@ uint32_t *get_aligned_code(size_t pagesize, size_t npages) {
 uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
   uint32_t i = 0;
   pid_t pid = getpid();
+  int cpu = sched_getcpu();
   assert(ninsns >= 32);
 
   //
@@ -76,7 +78,7 @@ uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
     code[i++] = BRANCH_PLUS_4;
     if (1) {
       code[i++] = 0xffffffff;  // marker
-      code[i++] = pid;         // pid
+      code[i++] = ((cpu & 0xff) << 24) | ((pid & 0xfffff) << 0);
       uint32_t address_self = (uint32_t)(intptr_t)&code[i];  // !!
       code[i++] = address_self;
     } else {

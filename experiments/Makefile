@@ -39,18 +39,20 @@ run: snapshot.x $(VICTIM) | data
           "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
 	sudo chown $(USER):$(USER) data/*
 
-# e11_flood.x: e11_flood.c
-
 data:
 	mkdir -p $@
 
 CFLAGS = -O2 -g -Wall
 
+LINK_ARGS = -fpie
+LINK_ARGS = -fno-pie
+LINK_ARGS = -static
+
 snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt
+	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
 
 %.x: %.c Makefile
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread
+	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
 
 %.objdump: %.x
 	objdump --disassemble $< > $@
