@@ -57,12 +57,13 @@ def analyze_processes():
             except TypeError:
                 pass
 
-RE_FILENAME = re.compile(r'[^0-9]+([0-9]+)\.csv')
+RE_FILENAME = re.compile(r'[^0-9]+([12])\.([0-9]+)\.csv')
 def analyze_processes_file(cache_info, input_file_name, input_fd):
     """Read a csv file, doing analysis."""
     match = RE_FILENAME.match(input_file_name)
     assert match
-    timestep = int(match.group(1), 10)
+    _cache_number = int(match.group(1), 10)
+    timestep = int(match.group(2), 10)
     reader = csv.DictReader(input_fd, fieldnames=cache_info.get_field_names())
     #
     # Read all rows, and store internally

@@ -27,6 +27,8 @@
 #include <sys/sysinfo.h>
 #include <sys/ioctl.h>
 
+#include <set>
+
 #include "./params.h"
 
 #define MAX_BENCHMARKS 20
@@ -92,6 +94,8 @@ int max_prio;
 
 volatile int done = 0;
 int snapshots = 0;
+
+std::set<pid_t> seen_pidset;
 
 /*
  * Use user-specified parameters to configure
@@ -497,7 +501,7 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
 
     if (!flag_mimic) {
         int old_observation = observation;
-        for (observation = DUMPCACHE_DO_L1; observation <= DUMPCACHE_DO_L2; observation++) {
+        for (observation = DUMPCACHE_DO_L2; observation <= DUMPCACHE_DO_L2; observation++) {
           acquire_new_snapshot();
           /*
            * Unless we are in transparent mode,
@@ -612,13 +616,11 @@ void ext_snapshot_handler(int signo, siginfo_t * info, void * extra) {
 
 /* Function to complete execution */
 void wrap_up(void) {
-    char * pathname;
     int pids_fd;
     ssize_t len;
     int i;
     ssize_t nwritten;
-
-    pathname = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
+    char *pathname = (char *)malloc(strlen(outdir) + MALLOC_CMD_PAD);
 
     /*
      * If we are running in transparent mode, now it's the time to
@@ -676,8 +678,14 @@ void wrap_up(void) {
         assert(nwritten == len);
     }
 
-    close(pids_fd);
-    free(pathname);
+    for (pid_t pid : seen_pidset) {
+        len = sprintf(pathname, "%d\n", pid);
+        nwritten = write(pids_fd, pathname, len);
+        assert(nwritten == len);
+    }
+
+    close(pids_fd); pids_fd = -1;
+    free(pathname); pathname = 0;
 }
 
 /*
@@ -836,8 +844,6 @@ void wait_completion(void) {
 #define DO_PRINT
 #include "../cache_operations.c"  // NOLINT
 
-std::set<pid_t> seen_pidset;
-
 /*
  * Entry function to interface with the kernel module via the proc interface
  */
@@ -900,17 +906,17 @@ void read_cache_to_file(const char *filename, int index) {
     close(dumpcache_fd);
 
     for (pid_t pid : pidset) {
-      if (!seen_pidset.contains(pid)) {
-          seen_pidset.insert(pid);
-          if (pid != 0) {
-            char src_name[BUFSIZ];
-            char dst_name[BUFSIZ];
-            snprintf(dst_name, sizeof(dst_name),
-                "%s/%d.cmdline.txt", outdir, pid);
-            snprintf(src_name, sizeof(src_name),
-                "/proc/%d/cmdline", pid);
-            copy_file(src_name, dst_name);
-          }
-      }
+        if (!seen_pidset.contains(pid)) {
+            seen_pidset.insert(pid);
+            if (pid != 0) {
+              char src_name[BUFSIZ];
+              char dst_name[BUFSIZ];
+              snprintf(dst_name, sizeof(dst_name),
+                  "%s/%d.cmdline.txt", outdir, pid);
+              snprintf(src_name, sizeof(src_name),
+                  "/proc/%d/cmdline", pid);
+              copy_file(src_name, dst_name);
+            }
+        }
     }
 }

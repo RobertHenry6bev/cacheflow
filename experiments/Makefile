@@ -12,9 +12,6 @@ PERIOD = 500
 VICTIM = e10_benchmark.x
 VICTIM_ARG =
 
-VICTIM = e11_sleep.x
-VICTIM_ARG = 10
-
 VICTIM = e11_math.x
 VICTIM_ARG = 500
 
@@ -24,6 +21,9 @@ VICTIM_ARG = 8000
 VICTIM_ARG = 80000
 VICTIM_ARG = 120000
 VICTIM_ARG = 1200000
+
+VICTIM = e11_sleep.x
+VICTIM_ARG = 10
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
@@ -142,13 +142,22 @@ CPPLINT_ARGS = \
   $(NULL)
 CPPLINT = $(HOME)/rrhbuild/cpplint/cpplint.py
 
-lint: $(CPPLINT) *.c *.h
+CAPSTONE = capstone.T
+
+lint: $(CPPLINT) *.c *.h $(CAPSTONE)
 	python3 $(CPPLINT) $(CPPLINT_ARGS) *.c *.h
 
-workingsets.csv: analyze_processes.py data/*.csv
-	python3 analyze_processes.py data/*.csv > $@
+.PRECIOUS: %.csv %.png
+workingsets.csv: analyze_processes.py data/cachedump.2.*.csv $(CAPSTONE)
+	python3 analyze_processes.py data/cachedump.2.*.csv > $@
 
 workingsets.png: workingsets.csv plot_workingsets.py
 	python3 plot_workingsets.py --input $< --output $@
 	ls -l *.png
 	file *.png
+
+$(CAPSTONE): /usr/bin/pip3
+	/usr/bin/pip3 install capstone
+	touch $@
+/usr/bin/pip3:
+	sudo apt-get install --yes python3-pip

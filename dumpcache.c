@@ -412,7 +412,7 @@ static bool rmap_one_func(struct page *page,
 
     mm = vma->vm_mm;
     if (!mm) {
-        pr_info("rmap_one_func XXX to end addr=0x%016lx\n", addr);
+        if (0) pr_info("rmap_one_func XXX to end addr=0x%016lx\n", addr);
         arg->pid = (pid_t)99999;
         return 1;
     }
@@ -420,14 +420,14 @@ static bool rmap_one_func(struct page *page,
     // Check if task struct is null
     ts = mm->owner;
     if (!ts) {
-        pr_info("rmap_one_func YYY to end addr=0x%016lx\n", addr);
+        if (0) pr_info("rmap_one_func YYY to end addr=0x%016lx\n", addr);
         arg->pid = (pid_t)99998;
         return 1;
     }
 
     // If pid is 1, continue searching pages  (TODO(robhenry): Why?)
     if (ts->pid == 1) {
-        pr_info("rmap_one_func ZZZ.0 to end addr=0x%016lx\n", addr);
+        if (0) pr_info("rmap_one_func ZZZ.0 to end addr=0x%016lx\n", addr);
         arg->pid = ts->pid;
         return 1;
     }
@@ -435,13 +435,13 @@ static bool rmap_one_func(struct page *page,
     // *Probably* the correct pid
     arg->pid = ts->pid;
     arg->addr = addr;
-    pr_info("rmap_one_func ZZZ.1 to end addr=0x%016lx\n", addr);
+    if (0) pr_info("rmap_one_func ZZZ.1 to end addr=0x%016lx\n", addr);
     return 0;
 }
 
 // done_func seems to get called once per valid pid map
 static int done_func(struct page *page) {
-    pr_info("rmap_one_func done_func PPPP\n");
+    if (0) pr_info("rmap_one_func done_func PPPP\n");
     return 1;
 }
 
@@ -505,7 +505,7 @@ static void phys_to_pid(const char *whence, u64 pa, struct phys_to_pid_data *pid
       //
       rmap_walk_locked_func(derived_page, &rwc);
 
-      // TRACE_IOCTL
+      TRACE_IOCTL
       pr_info("rmap_walk_locked_func for %s from "
           "addr 0x%016llx derived_page 0x%px returns pid=%d addr=0x%016llx\n",
           whence, pa, derived_page,

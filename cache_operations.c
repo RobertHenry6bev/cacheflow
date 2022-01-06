@@ -134,12 +134,12 @@ static int fill_Cortex_L1_Insn(void) {
       int valid = (p->tag.raw[1] >> 1) & 0x1;
       int ident = (p->tag.raw[1] >> 0) & 0x1;
       (void)ident;
-      if (p->pair[0].instruction[0] != 0x14000004) {
+      if (0 && p->pair[0].instruction[0] != 0x14000004) {
         // TODO(robhenry): skip rows not from e11_flood.c
         p->tag.pid = 2;
         continue;
       }
-      if (1) {
+      if (0) {
         pr_info("\nxxx L1 way=%d set=%d va=0x%016x valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
           way, set, va, valid, ident, p->tag.raw[1], p->tag.raw[0]);
       }
@@ -191,7 +191,7 @@ static int fill_Cortex_L1_Insn(void) {
         for (delta = 0; delta < 4; delta++) {
           uint64_t pa = (pa_a & MASK2(31, 14)) | (delta << 12) | (va & MASK2(11, 0));
           phys_to_pid("L1", pa, &pid_data);
-          if (1 /*&& pid_data.pid != 0*/) {
+          if (0 /*&& pid_data.pid != 0*/) {
             pr_info(
                 "yyy %d %3d va=0x%08x pa=0x%016llx delta=%d pid=%d\n",
                 way, va>>6,
@@ -250,7 +250,7 @@ static int fill_Cortex_L2_Unif(void) {
             //
             p->pa = (p->pa_tag & ~MASK2(15, 0)) | ((set << 6) & MASK2(15, 6));
 
-            if (cache->way[way].set[set].quad[0].instruction[0] != 0x14000004) {
+            if (0 && cache->way[way].set[set].quad[0].instruction[0] != 0x14000004) {
                 // TODO(robhenry): skip rows not from e11_flood.c
                 p->pid = 2;
                 continue;
@@ -310,7 +310,7 @@ void print_Cortex_L2_Unif(FILE *outfp,
     size_t L2_size =
         sizeof(struct Cortex_L2_Unif_Cache)
       - Cortex_L2_NWAY * Cortex_L2_NROW * sizeof(struct Cortex_L2_Unif_Tag);
-    assert(L2_size == 1 * 1024 * 1024);  // true for Rasperry Pi4 Broadcom BCM2711
+    assert(L2_size == 1 * 1024 * 1024);  // for Rasperry Pi4 Broadcom BCM2711
     uint32_t way, set, quad;
     for (way = 0; way < Cortex_L2_NWAY; way++) {
         for (set = 0; set < Cortex_L2_NROW; set++) {
@@ -322,7 +322,7 @@ void print_Cortex_L2_Unif(FILE *outfp,
             // is identical to the pid embedded in the instruction stream.
             //
             // This only makes sense when looking for telltale
-            // signaturres from e11_flood.c
+            // signatures from e11_flood.c
             //
             int fail_brand = 0;
             int fail_pid = 0;
