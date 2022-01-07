@@ -4,10 +4,14 @@ all: run
 WHICH_CACHE = 2
 WHICH_CACHE = 1
 
+#
+# Dumping L2 cache takes 316msecs/sample....
+# Asking for shorter periods is counter-productive?
+#
 PERIOD = 5
 PERIOD = 500
 PERIOD = 50
-PERIOD = 500
+PERIOD = 10
 
 VICTIM = e10_benchmark.x
 VICTIM_ARG =
@@ -23,7 +27,7 @@ VICTIM_ARG = 120000
 VICTIM_ARG = 1200000
 
 VICTIM = e11_sleep.x
-VICTIM_ARG = 10
+VICTIM_ARG = 20
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
