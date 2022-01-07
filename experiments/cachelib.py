@@ -11,7 +11,7 @@ class L1CacheConfig:
     def __init__(self):
         pass
     def get_field_names(self):
-        """Return field names for the csv file written by ../cache_operations.c"""
+        """Return field names for csv file written by ../cache_operations.c"""
         return [] \
           + ["way", "set"] \
           + ["pid", "pid_x"] \
@@ -29,14 +29,14 @@ class L2CacheConfig:
     def __init__(self):
         pass
     def get_field_names(self):
-        """Return field names for the csv file written by ../cache_operations.c"""
+        """Return field names for csv file written by ../cache_operations.c"""
         return [] \
           + ["check"] \
           + ["way", "set"] \
           + ["moesi"] \
           + ["pid", "pid_x"] \
           + ["rawtag"] \
-          + ["pa"] \
+          + ["phys_addr"] \
           + ["d_%02d" % (i,) for i in range(0, 16)]
     def get_nway(self):
         """Return number of ways in the cache."""
@@ -66,13 +66,21 @@ def read_saved_command_info(data_path):
             pid = int(match.group(1))
             with open("./data/" + input_file_name, "rb") as input_fd:
                 cmdline_raw = input_fd.read()
+                # print("cmdline_raw=%s" % (cmdline_raw,))
                 raw_splits = cmdline_raw.split(b'\0')
+                # print("raw_splits=%s" % (raw_splits,))
                 name = raw_splits[0].decode()
+                # print("name=%s" % (name,))
+                name = re.sub(re.compile(r": .*"), "", name)
+                name = re.sub(re.compile(r"^[@-]"), "", name)
+                # print("name=%s" % (name,))
                 path_splits = name.split("/")
+                # print("path_splits=%s" % (path_splits,))
                 base_name = path_splits[-1]
+                # print("base_name=%s" % (base_name,))
                 space_splits = base_name.split(" ")
-                pname = space_splits[0].trim(":")  # for sshd:
-                pid_map[pid] = pname
+                # print("space_splits=%s" % (space_splits,))
+                pid_map[pid] = space_splits[0]
     return pid_map
 
 class InstructionDecoder:
@@ -81,13 +89,15 @@ class InstructionDecoder:
     Cache the results, as Capstone takes a long time.
     """
     def __init__(self):
-        self.capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
+        self.capstone_engine = capstone.Cs(
+            capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         self.insn_value_to_decode = {}
 
     def dump(self):
         """Print out the cache."""
         # print(self.insn_value_to_decode)
-        print("%d instructions in the decode cache" % (len(self.insn_value_to_decode),))
+        print("%d instructions in the decode cache" % (
+            len(self.insn_value_to_decode),))
 
     def decode_to_str(self, phys_addr, insn_value):
         """decode the instruction to a printable string."""
@@ -107,7 +117,8 @@ class InstructionDecoder:
             return self.insn_value_to_decode[insn_value]
         ndecoded = 0
         decode_value = None
-        for insn in self.capstone_engine.disasm(insn_value.to_bytes(4, "little"), phys_addr):
+        for insn in self.capstone_engine.disasm(
+                insn_value.to_bytes(4, "little"), phys_addr):
             decode_value = [insn.mnemonic, insn.op_str]
             ndecoded += 1
         assert 0 <= ndecoded <= 1

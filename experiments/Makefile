@@ -1,8 +1,9 @@
-.PHONY: all
-all: run
+NULL =
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
 
-WHICH_CACHE = 2
 WHICH_CACHE = 1
+WHICH_CACHE = 2
 
 #
 # Dumping L2 cache takes 316msecs/sample....
@@ -52,10 +53,10 @@ LINK_ARGS = -fpie
 LINK_ARGS = -fno-pie
 LINK_ARGS = -static
 
-snapshot.x: snapshot.c Makefile ../cache_operations.c ../params_kernel.h
+snapshot.x: snapshot.c ../cache_operations.c ../params_kernel.h
 	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
 
-%.x: %.c Makefile
+%.x: %.c
 	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
 
 %.objdump: %.x
@@ -70,7 +71,7 @@ clean:
 CANON_CSV_FILE = ./data/cachedump0030.csv
 MAX_FILES = 50
 MAX_FILES = 5000
-ALL_CSV := $(shell ls data/*.csv                | head -$(MAX_FILES))
+ALL_CSV := $(shell ls data/*.$(WHICH_CACHE).*csv                | head -$(MAX_FILES))
 ALL_PNG = $(ALL_CSV:%.csv=%.png)
 
 DURATION_NUM=10
@@ -81,7 +82,7 @@ DURATION_DEN=1
 #
 .PHONY: movie
 movie: data/out.mp4
-data/out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
+data/out.mp4: /usr/bin/ffmpeg $(ALL_PNG)
 	-rm -f $@
 	/usr/bin/ffmpeg \
           -r 3/1 \
@@ -95,7 +96,7 @@ data/out.mp4: /usr/bin/ffmpeg $(ALL_PNG) Makefile
 .PHONY: all_png
 all_png: png_all
 .PHONY: png_all
-png_all: $(ALL_PNG) Makefile
+png_all: $(ALL_PNG)
 
 # WATCHOUT: this consumes a lot of space
 /usr/bin/ffmpeg:
@@ -107,7 +108,7 @@ png_all: $(ALL_PNG) Makefile
 plot_insn: data/cachedump0000.png
 
 PNG_SCALE = 2
-data/%.png: data/%.csv plot_insn.py Makefile
+data/%.png: data/%.csv plot_insn.py
 	python3 plot_insn.py \
           --kind L$(WHICH_CACHE) \
           --scale $(PNG_SCALE) \
@@ -116,17 +117,17 @@ data/%.png: data/%.csv plot_insn.py Makefile
           --output $@ \
           $<
 
-data/all.png.T: data/*.csv plot_insn.py Makefile
+data/all.png.T: data/*.$(WHICH_CACHE).*.csv plot_insn.py
 	python3 plot_insn.py \
           --kind L$(WHICH_CACHE) \
           --scale $(PNG_SCALE) \
           --show_pid \
           --stats \
-          data/*.csv
+          data/*.$(WHICH_CACHE).*.csv
 	touch $@
 
-.PHONY: debug_line_stats
-debug_line_stats: $(CANON_CSV_FILE) plot_insn.py Makefile
+.PHONY: line_stats
+line_stats: $(CANON_CSV_FILE) plot_insn.py
 	python3 plot_insn.py \
           --kind L$(WHICH_CACHE) \
           --scale $(PNG_SCALE) \
@@ -152,11 +153,18 @@ lint: $(CPPLINT) *.c *.h $(CAPSTONE)
 	python3 $(CPPLINT) $(CPPLINT_ARGS) *.c *.h
 
 .PRECIOUS: %.csv %.png
-workingsets.csv: analyze_processes.py data/cachedump.2.*.csv $(CAPSTONE)
-	python3 analyze_processes.py data/cachedump.2.*.csv > $@
+workingsets.csv: analyze_processes.py data/cachedump.$(WHICH_CACHE).*.csv $(CAPSTONE)
+	python3 analyze_processes.py \
+          --kind L$(WHICH_CACHE) \
+          data/cachedump.$(WHICH_CACHE).*.csv \
+          > $@
 
-workingsets.png: workingsets.csv plot_workingsets.py
-	python3 plot_workingsets.py --input $< --output $@
+workingsets.data.png workingsets.code.png: workingsets.csv plot_workingsets.py
+	python3 plot_workingsets.py \
+          --period $(PERIOD) \
+          --kind L$(WHICH_CACHE) \
+          --input $< \
+          --output workingsets.%s.png
 	ls -l *.png
 	file *.png
 
