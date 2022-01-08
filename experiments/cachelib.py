@@ -15,7 +15,7 @@ class L1CacheConfig:
         return [] \
           + ["way", "set"] \
           + ["pid", "pid_x"] \
-          + ["t1" , "phys_addr"] \
+          + ["t1" , "rawtag", "pa"] \
           + ["d_%02d" % (i,) for i in range(0, 16)]
     def get_nway(self):
         """Return number of ways in the cache."""
@@ -35,8 +35,7 @@ class L2CacheConfig:
           + ["way", "set"] \
           + ["moesi"] \
           + ["pid", "pid_x"] \
-          + ["rawtag"] \
-          + ["pa"] \
+          + ["t1", "rawtag", "pa"] \
           + ["d_%02d" % (i,) for i in range(0, 16)]
     def get_nway(self):
         """Return number of ways in the cache."""

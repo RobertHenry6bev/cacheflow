@@ -21,6 +21,8 @@
 
 #define FILL 0xaaaaaaaaULL
 
+#define EXAMINE_FLOOD_ONLY 1
+
 static inline void  __attribute__((always_inline))
 get_L1Itag(u32 way, u32 va, uint32_t *raw_values) {
   u32 ramindex = 0
@@ -134,12 +136,19 @@ static int fill_Cortex_L1_Insn(void) {
       int valid = (p->tag.raw[1] >> 1) & 0x1;
       int ident = (p->tag.raw[1] >> 0) & 0x1;
       (void)ident;
-      if (0 && p->pair[0].instruction[0] != 0x14000004) {
-        // TODO(robhenry): skip rows not from e11_flood.c
-        p->tag.pid = 2;
-        continue;
+      {
+        int flood = 1;
+        flood &= (p->pair[ 0/2].instruction[0] == 0x14000004);
+        flood &= (p->pair[ 4/2].instruction[0] == 0x14000004);
+        flood &= (p->pair[ 8/2].instruction[0] == 0x14000004);
+        flood &= (p->pair[12/2].instruction[0] == 0x14000004);
+        if (!(EXAMINE_FLOOD_ONLY && flood)) {
+          p->tag.pid = 2;
+          continue;
+        }
       }
-      if (0) {
+
+      if (1) {
         pr_info("\nxxx L1 way=%d set=%d va=0x%016x valid=%d ident=%d @1=0x%08x @0=0x%08x\n",
           way, set, va, valid, ident, p->tag.raw[1], p->tag.raw[0]);
       }
@@ -153,6 +162,7 @@ static int fill_Cortex_L1_Insn(void) {
         // They overlap the bottom 2 bits of the phys address.
         //
         // email from Thomas Speier:
+        //
         // I don't know all of the details of the A72, but overlapping
         // of bits between virtual and physical addresses is fairly
         // common.
@@ -182,7 +192,7 @@ static int fill_Cortex_L1_Insn(void) {
         // even when capturing Tag RAM values.
         //
 
-        uint64_t pa_a = (p->tag.raw[0] << 12);   // bits 43:12
+        uint64_t pa_a = (p->tag.raw[0] << 12);   // bits 43:12  TODO
         uint64_t va_a = (va & MASK2(13, 0));
         uint64_t comm = MASK2(13, 12);
         int delta;
@@ -191,7 +201,7 @@ static int fill_Cortex_L1_Insn(void) {
         for (delta = 0; delta < 4; delta++) {
           uint64_t pa = (pa_a & MASK2(31, 14)) | (delta << 12) | (va & MASK2(11, 0));
           phys_to_pid("L1", pa, &pid_data);
-          if (0 /*&& pid_data.pid != 0*/) {
+          if (1 /*&& pid_data.pid != 0*/) {
             pr_info(
                 "yyy %d %3d va=0x%08x pa=0x%016llx delta=%d pid=%d\n",
                 way, va>>6,
@@ -199,8 +209,9 @@ static int fill_Cortex_L1_Insn(void) {
                 delta,
                 pid_data.pid);
           }
+          p->tag.pid = pid_data.pid;
+          p->tag.pa = pa;
         }
-        p->tag.pid = pid_data.pid;
       }
     }
   }
@@ -250,10 +261,16 @@ static int fill_Cortex_L2_Unif(void) {
             //
             p->pa = (p->pa_tag & ~MASK2(15, 0)) | ((set << 6) & MASK2(15, 6));
 
-            if (0 && cache->way[way].set[set].quad[0].instruction[0] != 0x14000004) {
-                // TODO(robhenry): skip rows not from e11_flood.c
+            {
+              int flood = 1;
+              flood &= (cache->way[way].set[set].quad[0].instruction[0] == 0x14000004);
+              flood &= (cache->way[way].set[set].quad[1].instruction[0] == 0x14000004);
+              flood &= (cache->way[way].set[set].quad[2].instruction[0] == 0x14000004);
+              flood &= (cache->way[way].set[set].quad[3].instruction[0] == 0x14000004);
+              if (!(EXAMINE_FLOOD_ONLY && flood)) {
                 p->pid = 2;
                 continue;
+              }
             }
 
             if (p->moesi != 0) {
@@ -284,11 +301,10 @@ void print_Cortex_L1_Insn(FILE *outfp,
         for (set = 0; set < 256; set++) {
             const struct Cortex_L1_I_Insn_Bank *p = &cache->way[way].set[set];
             pidset->insert(p->tag.pid);
-            fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x ",
+            fprintf(outfp, "%d,%d,%d,0x%04x, 0x%08x,0x%08x,0x%016lx ",
                 way, set,
                 p->tag.pid, p->tag.pid,
-                p->tag.raw[1],   // bottom 2 bits: valid bit; non-secure id
-                p->tag.raw[0]);  // physical address tag [43:12]
+                p->tag.raw[1], p->tag.raw[0], p->tag.pa);
             const char *sep = ",";
             for (pair = 0; pair < 4*2; pair++) {
                 const struct Cortex_L1_I_Insn_Pair *p =
@@ -335,14 +351,13 @@ void print_Cortex_L2_Unif(FILE *outfp,
                     (pid_t)(p->quad[q].instruction[2]) != p->tag.pid);
               }
             }
-            fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x,0x%016lx ",
+            fprintf(outfp, "%c%c, %2d,%4d,%d,  %5d,0x%04x, 0x%08x,0x%08x,0x%016lx ",
                 fail_brand ? 'B' : '-',
                 fail_pid   ? 'P' : '-',
                 way, set,
                 p->tag.moesi,
                 p->tag.pid, p->tag.pid,
-                p->tag.raw[0],
-                p->tag.pa);
+                p->tag.raw[1], p->tag.raw[0], p->tag.pa);
             const char *sep = ",";
             for (quad = 0; quad < 4; quad++) {
                 const struct Cortex_L2_Unif_Quad *p =

@@ -38,7 +38,6 @@ __used __section("__versions") = {
 	{ 0x45115c86, "seq_read" },
 	{ 0xc9953998, "seq_lseek" },
 	{ 0xe2b9bf8b, "seq_release" },
-	{ 0xc5850110, "printk" },
 	{ 0x43b0c9c3, "preempt_schedule" },
 	{ 0xa339e6e5, "on_each_cpu_cond_mask" },
 	{ 0x5e3240a0, "__cpu_online_mask" },
@@ -46,8 +45,9 @@ __used __section("__versions") = {
 	{ 0x4829a47e, "memcpy" },
 	{ 0x4c98d79b, "cpu_hwcap_keys" },
 	{ 0x14b89635, "arm64_const_caps_ready" },
-	{ 0x9f49dcc4, "__stack_chk_fail" },
+	{ 0xc5850110, "printk" },
 	{ 0x9688de8b, "memstart_addr" },
+	{ 0x9f49dcc4, "__stack_chk_fail" },
 	{ 0xb5b54b34, "_raw_spin_unlock" },
 	{ 0xba8fbd64, "_raw_spin_lock" },
 };
@@ -55,4 +55,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "");
 
 
-MODULE_INFO(srcversion, "EA14D5B3FACA4544BA6915A");
+MODULE_INFO(srcversion, "8EBC6069ECE25B7B3868E21");

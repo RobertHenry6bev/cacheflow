@@ -501,7 +501,7 @@ void snapshot_handler(int signo, siginfo_t * info, void * extra) {
 
     if (!flag_mimic) {
         int old_observation = observation;
-        for (observation = DUMPCACHE_DO_L2; observation <= DUMPCACHE_DO_L2; observation++) {
+        for (observation = DUMPCACHE_DO_L1; observation <= DUMPCACHE_DO_L2; observation++) {
           acquire_new_snapshot();
           /*
            * Unless we are in transparent mode,

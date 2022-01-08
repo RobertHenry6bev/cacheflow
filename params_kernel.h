@@ -42,6 +42,7 @@ enum DumpCacheWhichCache {
 
 struct Cortex_L1_I_Tag {
   pid_t pid;
+  uint64_t pa;    // constructed full physical address
   uint32_t raw[2];
 };
 
@@ -76,7 +77,7 @@ struct Cortex_L2_Unif_Tag {
   uint8_t id;     // non secure identifier for the physical address
   uint64_t pa_tag;
   uint64_t pa;    // constructed full physical address
-  uint32_t raw[1];
+  uint32_t raw[2];  // raw data from hardware
 };
 
 struct Cortex_L2_Unif_Quad {

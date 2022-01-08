@@ -493,7 +493,7 @@ static void phys_to_pid(const char *whence, u64 pa, struct phys_to_pid_data *pid
 
     if (rmap_walk_locked_func) {
       struct page *derived_page = phys_to_page(pa);
-      TRACE_IOCTL
+      // TRACE_IOCTL
       pr_info("rmap_walk_locked_func for %s from "
           "addr 0x%016llx derived_page 0x%px\n",
           whence, pa, derived_page);

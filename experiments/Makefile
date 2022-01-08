@@ -19,15 +19,16 @@ VICTIM_ARG =
 VICTIM = e11_math.x
 VICTIM_ARG = 500
 
+VICTIM = e11_sleep.x
+VICTIM_ARG = 20
+
+
 # 120000 is about 2 seconds
 VICTIM = e11_flood.x
 VICTIM_ARG = 8000
 VICTIM_ARG = 80000
 VICTIM_ARG = 120000
 VICTIM_ARG = 1200000
-
-VICTIM = e11_sleep.x
-VICTIM_ARG = 20
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
