@@ -12,6 +12,7 @@ from plot_workingsets.py
 import argparse
 import csv
 import re
+import sys
 
 import capstone
 
@@ -41,32 +42,38 @@ def analyze_processes():
         "--kind",
         help="kind of cache, either L1 or L2",
         type=str,
-        default="L1",)
+        default="L2",)
     parser.add_argument(
         "rest",
         nargs=argparse.REMAINDER,)
 
     args = parser.parse_args()
     cache_info = cachelib.configuration_factory(args.kind)
-
     print(PidInfo.fieldnames(), flush=True)
+    sys.stdout.flush()
     for input_file_name in args.rest:
         with open(input_file_name, "r") as input_fd:
             try:
-                analyze_processes_file(cache_info, input_file_name, input_fd)
+                analyze_processes_file(args.kind, cache_info,
+                    input_file_name, input_fd)
             except TypeError:
                 pass
 
-RE_FILENAME = re.compile(r'[^0-9]+([12])\.([0-9]+)\.csv')
-def analyze_processes_file(cache_info, input_file_name, input_fd):
+RE_FILENAME = re.compile(r'[^0-9]+\.([^.]+)\.([0-9]+)\.csv')
+def analyze_processes_file(kind, cache_info, input_file_name, input_fd):
     """Read a csv file, doing analysis."""
     match = RE_FILENAME.match(input_file_name)
     assert match
-    _cache_number = int(match.group(1), 10)
+    _cache_type = match.group(1)
     timestep = int(match.group(2), 10)
+    print("kind=%s filename=%s timestep=%d" % (kind,
+        input_file_name, timestep,), flush=True, file=sys.stderr)
+    if DEBUG:
+        print("fields=%s" % (cache_info.get_field_names(),), flush=True)
     reader = csv.DictReader(input_fd, fieldnames=cache_info.get_field_names())
+    capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
     #
-    # Read all rows, and store internally
+    # Read all rows, and store the contents internally.
     #
     pidinfo = {}  # indexed by phys_addr of PidInfo
     for row in reader:
@@ -76,7 +83,6 @@ def analyze_processes_file(cache_info, input_file_name, input_fd):
         phys_addr = int(row["phys_addr"], 16)
         insns = [int(row["d_%02d" % (i,)], 16) for i in range(0, 16)]
 
-        capstone_engine = capstone.Cs(capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM)
         byte_delta = 0
         ndecoded = 0
         decoded_insns = []
@@ -87,14 +93,16 @@ def analyze_processes_file(cache_info, input_file_name, input_fd):
                 decoded_insns.append("%s\t%s" % (insn.mnemonic, insn.op_str,))
             byte_delta += 4
         if DEBUG:
-            print("Address 0x%016x has %2d instructions: %s" % (phys_addr, ndecoded, insns,))
+            print("Address 0x%016x has %2d instructions: %s" % (
+                phys_addr, ndecoded, insns,), flush=True)
             if ndecoded == 16:
                 for decoded_insn in decoded_insns:
-                    print("\t%s" % (decoded_insn,))
+                    print("\t%s" % (decoded_insn,), flush=True)
         if ndecoded == 16:
             pidinfo[pid].code_rows += 1
         else:
             pidinfo[pid].data_rows += 1
+
     for _pid, info in pidinfo.items():
         print("%s" % (info,), flush=True)
 
