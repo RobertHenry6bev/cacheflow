@@ -2,6 +2,11 @@ NULL =
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
+UNAME_M := $(shell uname -m)
+
+#
+# Choose between L1 or L2 cache
+#
 WHICH_CACHE = 1
 WHICH_CACHE = 2
 
@@ -31,6 +36,12 @@ VICTIM_ARG = 80000
 VICTIM_ARG = 120000
 VICTIM_ARG = 1200000
 
+ifeq ($(UNAME_M),aarch64)
+  GXX = /usr/bin/g++
+else
+  GXX = /usr/bin/aarch64-linux-gnu-g++-9
+endif
+
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
 	lsmod | grep dumpcache || echo "dumpcache module not loaded" || false
@@ -55,10 +66,10 @@ LINK_ARGS = -fno-pie
 LINK_ARGS = -static
 
 snapshot.x: snapshot.c ../cache_operations.c ../params_kernel.h
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
+	$(GXX) -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
 
 %.x: %.c
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
+	$(GXX) -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
 
 %.objdump: %.x
 	objdump --disassemble $< > $@
