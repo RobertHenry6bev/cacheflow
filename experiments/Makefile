@@ -15,21 +15,25 @@ PERIOD = 50
 PERIOD = 10
 
 VICTIM = e10_benchmark.x
-VICTIM_ARG =
+VICTIM_ARGS =
 
 VICTIM = e11_math.x
-VICTIM_ARG = 500
+VICTIM_ARGS = 500
 
 VICTIM = e11_sleep.x
-VICTIM_ARG = 20
+VICTIM_ARGS = 20
 
 
-# 120000 is about 2 seconds
+# 120000 is about 2 seconds on Raspberry Pi4 
 VICTIM = e11_flood.x
-VICTIM_ARG = 8000
-VICTIM_ARG = 80000
-VICTIM_ARG = 120000
-VICTIM_ARG = 1200000
+# Args are: number_of_pages, number_executions_over_pages
+VICTIM_ARGS = 10 8000
+VICTIM_ARGS = 10 80000
+VICTIM_ARGS = 10 120000
+VICTIM_ARGS = 10 1200000
+
+# VICTIM = e11_flood.x
+# VICTIM_ARGS = 2 1
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
@@ -42,7 +46,7 @@ run: snapshot.x $(VICTIM) | data
           -p $(PERIOD) \
           -f \
           -o $(PWD)/data \
-          "$(PWD)/$(VICTIM) $(VICTIM_ARG)"
+          "$(PWD)/$(VICTIM) $(VICTIM_ARGS)"
 	sudo chown $(USER):$(USER) data/*
 
 data:
@@ -54,14 +58,23 @@ LINK_ARGS = -fpie
 LINK_ARGS = -fno-pie
 LINK_ARGS = -static
 
-snapshot.x: snapshot.c ../cache_operations.c ../params_kernel.h
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
+DO_NATIVE=yes
+ifeq ($(DO_NATIVE),yes)
+  GXX     = /usr/bin/g++-10
+  OBJDUMP = /usr/bin/objdump
+else
+  GXX     = /usr/bin/aarch64-linux-gnu-g++-10
+  OBJDUMP = /usr/bin/aarch64-linux-gnu-objdump
+endif
 
-%.x: %.c
-	g++ -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
+snapshot.x: snapshot.c ../cache_operations.c ../params_kernel.h $(GXX)
+	$(GXX) -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)
 
-%.objdump: %.x
-	objdump --disassemble $< > $@
+%.x: %.c $(GXX)
+	$(GXX) -std=c++20 $(CFLAGS) -o $@ $< -lrt -lpthread $(LINK_ARGS)
+
+%.objdump: %.x $(OBJDUMP)
+	$(OBJDUMP) --disassemble $< > $@
 
 .PHONY: clean
 clean:

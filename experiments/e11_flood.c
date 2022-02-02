@@ -15,19 +15,21 @@
 
 #include "./params.h"
 
-typedef int(*fooworker)(int);
+#include "../../robhenry-perf/qemu_plugin_control/qemu_plugin_control.c"
 
-void *foo_runner(void *vp) {
-  fooworker func = *(fooworker*)vp;
+typedef int(*stress_worker)(int);
+
+void *stress_runner(void *vp) {
+  stress_worker func = *(stress_worker*)vp;
   int i = func(1);  // argument is ignored
   (void)i;
   return NULL;
 }
 
-uint32_t *get_aligned_code(size_t pagesize, size_t npages) {
+uint32_t *get_aligned_code(size_t pagesize, size_t npages_jitted_code) {
   void *memptr = NULL;
   assert(pagesize == 4096);
-  int memalign_code = posix_memalign(&memptr, pagesize, npages * pagesize);
+  int memalign_code = posix_memalign(&memptr, pagesize, npages_jitted_code * pagesize);
   if (memalign_code != 0) {
     perror("posix_align failed");
     exit(1);
@@ -36,7 +38,7 @@ uint32_t *get_aligned_code(size_t pagesize, size_t npages) {
   assert(low_bits == 0);
   if (mprotect(
       memptr,
-      npages * pagesize,
+      npages_jitted_code * pagesize,
       PROT_READ|PROT_WRITE|PROT_EXEC) != 0) {
     perror("mprotect to make writeable and executable");
   }
@@ -46,7 +48,7 @@ uint32_t *get_aligned_code(size_t pagesize, size_t npages) {
 #define NOP 0xd503201f
 #define BRANCH_PLUS_4 0x14000004
 
-uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
+uint32_t *fill_aligned_code(uint32_t nrun_jitted_code, uint32_t *code, size_t ninsns) {
   uint32_t i = 0;
   pid_t pid = getpid();
   int cpu = sched_getcpu();
@@ -56,11 +58,11 @@ uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
   // For a loop iteration of 6M times:
   // 6000000 == 6 * 1000 * 1000 == (0x5b<<16) + 0x8d80
   // We'll start with code that was compiled for 6000000,
-  // and swap in the bits for "count".
+  // and swap in the bits for "nrun_jitted_code".
   //
   {
-    uint32_t upper = (count >> 16) & 0xffff;
-    uint32_t lower = (count >>  0) & 0xffff;
+    uint32_t upper = (nrun_jitted_code >> 16) & 0xffff;
+    uint32_t lower = (nrun_jitted_code >>  0) & 0xffff;
     uint32_t movw = 0x5291b001;  // movw w1, #0x8d80
     uint32_t movk = 0x72a00b61;  // movk w1, #0x5b, lsl #16 (base)
     uint32_t mask = ((1 << (20-5+1)) - 1) << 5;
@@ -106,10 +108,10 @@ uint32_t *fill_aligned_code(uint32_t count, uint32_t *code, size_t ninsns) {
   return &code[i];
 }
 
-void lock_aligned_code(void *memptr, size_t pagesize, size_t npages) {
+void lock_aligned_code(void *memptr, size_t pagesize, size_t npages_jitted_code) {
   if (mprotect(
       memptr,
-      npages * pagesize,
+      npages_jitted_code * pagesize,
       PROT_READ|PROT_EXEC) != 0) {
     perror("mprotect to make wrieable and executable");
   }
@@ -118,27 +120,34 @@ void lock_aligned_code(void *memptr, size_t pagesize, size_t npages) {
 #define NTHREAD 4  //  Raspberry Pi 4
 int main(int argc, const char **argv) {
   int i;
-  fooworker thread_arg[NTHREAD];
+  stress_worker thread_arg[NTHREAD];
   pthread_t *worker_thread = (pthread_t *)calloc(NTHREAD, sizeof(pthread_t));
 
-  size_t pagesize = getpagesize();
-  size_t npages = 16;
-  size_t ninsns = (pagesize * npages) / sizeof(uint32_t);
-
-  uint32_t *code_block = get_aligned_code(pagesize, npages);
-
-  int count = 6 * 1000 * 1000;
+  size_t npages_jitted_code = 16;
+  int nrun_jitted_code = 6 * 1000 * 1000;  // number of iterations over JITted code
   if (argc > 1) {
-      count = atoi(argv[1]);
+      npages_jitted_code = atoi(argv[1]);
+  }
+  if (argc > 2) {
+      nrun_jitted_code = atoi(argv[2]);
   }
 
-  fill_aligned_code(count, code_block, ninsns);
-  lock_aligned_code(code_block, pagesize, npages);
+  size_t pagesize = getpagesize();
+  size_t ninsns = (pagesize * npages_jitted_code) / sizeof(uint32_t);
+
+  uint32_t *code_block = get_aligned_code(pagesize, npages_jitted_code);
+
+  fill_aligned_code(nrun_jitted_code, code_block, ninsns);
+  lock_aligned_code(code_block, pagesize, npages_jitted_code);
   __builtin___clear_cache(code_block, code_block+ninsns);  // builtin for gcc
 
-  fooworker func = (fooworker)code_block;
+  stress_worker func = (stress_worker)code_block;
   if (1) {
+    printf("qemu_plugin_start...\n");
+    qemu_plugin_start();
     func(1);
+    qemu_plugin_stop();
+    printf("qemu_plugin_stop...\n");
     printf("DONE!\n");
   } else {
     for (i = 0; i < NTHREAD; i++) {
@@ -146,7 +155,7 @@ int main(int argc, const char **argv) {
       pthread_create(
         &worker_thread[i],
         NULL,
-        foo_runner,
+        stress_runner,
         &thread_arg[i]);
     }
     for (i = 0; i < NTHREAD; i++) {
