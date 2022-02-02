@@ -2,6 +2,11 @@ NULL =
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
+UNAME_M := $(shell uname -m)
+
+#
+# Choose between L1 or L2 cache
+#
 WHICH_CACHE = 1
 WHICH_CACHE = 2
 
@@ -34,6 +39,12 @@ VICTIM_ARGS = 10 1200000
 
 # VICTIM = e11_flood.x
 # VICTIM_ARGS = 2 1
+
+ifeq ($(UNAME_M),aarch64)
+  GXX = /usr/bin/g++
+else
+  GXX = /usr/bin/aarch64-linux-gnu-g++-9
+endif
 
 .PHONY: run
 run: snapshot.x $(VICTIM) | data
