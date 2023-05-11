@@ -157,8 +157,19 @@ sudo vi /boot/firmware/config.txt
 append to file: total_mem=3968M
 ```
 
+## For a 4GByte Raspberry pi4, running ubuntu 22.04
+Confirmed on 11May2023
+```bash
+sudo vi /boot/firmware/cmdline.txt
+append to line: mem=3968M
+sudo vi /boot/firmware/config.txt
+append to file: total_mem=3968M
+sudo reboot
+```
+
 ## Kernel configuration
-Turn off address space layout randomization (aslr).
+Turn off(huh? did I mean on? -rrh)
+address space layout randomization (aslr).
 To do so, (re)edit `/boot/firmware/cmdline.txt`:
 ```bash
 sudo vi /boot/firmware/cmdline.txt

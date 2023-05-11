@@ -83,6 +83,9 @@ static unsigned long lookup_name(const char *name) {
 // kernel 5.13.0 ubuntu 21.10: Edit files:
 //    /boot/firmware/cmdline.txt
 //
+// kernel 5.15.0-1028-raspi 22.04 "Ubuntu 22.04.2 LTS"
+//    /boot/firmware/cmdline.txt
+//
 
 #define CACHE_BUF_BASE (0xfaffffffUL+1)  //
 #define CACHE_BUF_END  (0xfbffffffUL+1)  //
@@ -595,8 +598,8 @@ int init_module(void) {
           CACHE_BUF_SIZE,
           MEMREMAP_WT);
 
-      pr_info("__buf_start=0x%px from 0x%016lx for %ld\n",
-          __buf_start, CACHE_BUF_BASE, CACHE_BUF_COUNT);
+      pr_info("__buf_start=0x%px from 0x%016lx for size %ld count %ld\n",
+          __buf_start, CACHE_BUF_BASE, CACHE_BUF_SIZE, CACHE_BUF_COUNT);
     } else {
       __buf_start = (union cache_sample *) 0;
     }

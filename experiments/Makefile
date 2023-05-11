@@ -69,12 +69,13 @@ LINK_ARGS = -fpie
 LINK_ARGS = -fno-pie
 LINK_ARGS = -static
 
+GCC_VERSION = 12
 DO_NATIVE=yes
 ifeq ($(DO_NATIVE),yes)
-  GXX     = /usr/bin/g++-10
+  GXX     = /usr/bin/g++-$(GCC_VERSION)
   OBJDUMP = /usr/bin/objdump
 else
-  GXX     = /usr/bin/aarch64-linux-gnu-g++-10
+  GXX     = /usr/bin/aarch64-linux-gnu-g++-$(GCC_VERSION)
   OBJDUMP = /usr/bin/aarch64-linux-gnu-objdump
 endif
 

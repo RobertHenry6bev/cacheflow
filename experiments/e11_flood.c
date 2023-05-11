@@ -15,7 +15,7 @@
 
 #include "./params.h"
 
-#include "../../robhenry-perf/qemu_plugin_control/qemu_plugin_control.c"
+#include "../../robhenry-perf/aha_roi/aha_roi.h"
 
 typedef int(*stress_worker)(int);
 
@@ -143,11 +143,12 @@ int main(int argc, const char **argv) {
 
   stress_worker func = (stress_worker)code_block;
   if (1) {
-    printf("qemu_plugin_start...\n");
-    qemu_plugin_start();
+    printf("aha_roi_start...\n");
+    uint32_t mask = AHA_ROI_INSTRUCTION|AHA_ROI_REALTIME|AHA_ROI_PRINTF;
+    aha_roi_start(0xaaaaaaaa, mask);
     func(1);
-    qemu_plugin_stop();
-    printf("qemu_plugin_stop...\n");
+    aha_roi_stop(0x55555555, mask);
+    printf("aha_roi_stop...\n");
     printf("DONE!\n");
   } else {
     for (i = 0; i < NTHREAD; i++) {
@@ -164,3 +165,4 @@ int main(int argc, const char **argv) {
   }
   return 0;
 }
+#include "../../robhenry-perf/aha_roi/aha_roi.c"
