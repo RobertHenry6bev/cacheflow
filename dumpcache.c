@@ -22,6 +22,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 #include <linux/version.h>
+// #include <asm/memory.h> // phys_to_page
 
 #include "./params_kernel.h"
 

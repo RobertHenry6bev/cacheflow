@@ -158,7 +158,7 @@ append to file: total_mem=3968M
 ```
 
 ## For a 4GByte Raspberry pi4, running ubuntu 22.04
-Confirmed on 11May2023
+Confirmed on 11May2023.
 ```bash
 sudo vi /boot/firmware/cmdline.txt
 append to line: mem=3968M
