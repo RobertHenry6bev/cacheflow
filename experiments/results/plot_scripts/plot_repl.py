@@ -9,7 +9,7 @@ import statistics
 cached = []
 fig = plt.figure(figsize=(6, 5))
 
-plt.xticks(range(0,17))
+plt.xticks(list(range(0,17)))
 plt.title('Probability of X Lines Cached after Y Iterations')
 
 plots = 8
@@ -49,7 +49,7 @@ for r in range(1, plots+1):
         cached[r-1][cur] += 1
         raw.append(cur+1)
         
-    print cached[r-1]
+    print(cached[r-1])
 
     #ax.axvline(statistics.median(raw))
     norm_cached = [0] * len(cached[r-1])
@@ -57,7 +57,7 @@ for r in range(1, plots+1):
     for l in range(len(cached[r-1])):
         norm_cached[l] = float(cached[r-1][l]) / (sum(cached[r-1]))
     
-    x = range(1,17)
+    x = list(range(1,17))
     ax.bar(x, norm_cached, color=colors[r-1], label=(str(r) + " iter."))
     ax.set_yticks([0.1, 0.3, 0.5])
     ax.set_ylim(0, 0.5)
@@ -65,7 +65,7 @@ for r in range(1, plots+1):
     if r == plots/2:
         ax.set_ylabel('Probability')
 
-    ax.set_xticks(range(1,17))
+    ax.set_xticks(list(range(1,17)))
 
     mean,std=norm.fit(raw)
 
@@ -79,7 +79,7 @@ for r in range(1, plots+1):
     handles.append(ax.get_legend_handles_labels()[0][0])
     labels.append(ax.get_legend_handles_labels()[1][0])    
 
-    print len(ax.get_legend_handles_labels()[0])
+    print(len(ax.get_legend_handles_labels()[0]))
     
     if r == 8:        
         ax.plot(x, p, linewidth=1, color='r', ls="--", label="Fit")
@@ -91,7 +91,7 @@ for r in range(1, plots+1):
         ax.plot(x, p, linewidth=1, color='r', ls="--", label="_nolegend_")
 
         
-ax.set_xticks(range(1,17))
+ax.set_xticks(list(range(1,17)))
 #ax.set_xlim(1,16)
 ax.set_xlabel('Number of Cached Lines ($k$)')
 

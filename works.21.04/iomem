@@ -1,0 +1,45 @@
+00000000-3b3fffff : System RAM
+  00000000-00000fff : reserved
+  00210000-0144ffff : Kernel code
+  01450000-018affff : reserved
+  018b0000-01bbffff : Kernel data
+  29000000-2cffffff : reserved
+  2d19b000-2d1a7fff : reserved
+  2d1a8000-2effffff : reserved
+  37400000-3b3fffff : reserved
+40000000-f7ffffff : System RAM
+  f3000000-f6ffffff : reserved
+  f7136000-f7195fff : reserved
+  f7196000-f7796fff : reserved
+  f7797000-f781afff : reserved
+  f781d000-f781efff : reserved
+  f781f000-f781ffff : reserved
+  f7820000-f7822fff : reserved
+  f7823000-f7823fff : reserved
+  f7824000-f7ffffff : reserved
+fd500000-fd50930f : fd500000.pcie pcie@7d500000
+fd580000-fd58ffff : fd580000.ethernet ethernet@7d580000
+  fd580e14-fd580e1c : unimac-mdio.-19
+fe007000-fe007aff : fe007000.dma dma@7e007000
+fe007b00-fe007eff : fe007b00.dma dma@7e007b00
+fe00a000-fe00a023 : fe100000.watchdog watchdog@7e100000
+fe00b840-fe00b87b : fe00b840.mailbox mailbox@7e00b840
+fe00b880-fe00b8bf : fe00b880.mailbox mailbox@7e00b880
+fe100000-fe100113 : fe100000.watchdog watchdog@7e100000
+fe101000-fe102fff : fe101000.cprman cprman@7e101000
+fe104000-fe104027 : fe104000.rng rng@7e104000
+fe200000-fe2000b3 : fe200000.gpio gpio@7e200000
+fe201000-fe2011ff : serial@7e201000
+  fe201000-fe2011ff : fe201000.serial serial@7e201000
+fe204000-fe2041ff : fe204000.spi spi@7e204000
+fe215000-fe215007 : fe215000.aux aux@7e215000
+fe215040-fe21507f : serial
+fe300000-fe3000ff : fe300000.mmcnr mmcnr@7e300000
+fe340000-fe3400ff : fe340000.mmc mmc@7e340000
+fe804000-fe804fff : fe804000.i2c i2c@7e804000
+fe980000-fe98ffff : fe980000.usb usb@7e980000
+fec11000-fec1101f : fe100000.watchdog watchdog@7e100000
+600000000-63fffffff : pcie@7d500000
+  600000000-6000fffff : PCI Bus 0000:01
+    600000000-600000fff : 0000:01:00.0
+      600000000-600000fff : xhci-hcd

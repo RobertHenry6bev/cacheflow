@@ -1,2 +1,16 @@
 *.x
+*.T
 data/
+.*.swp
+*.s
+*.o
+*.png
+*.mp4
+*.tgz
+*.mkv
+*.s
+*.objdump
+*.out
+core.*
+*.csv
+__pycache__/

@@ -13,7 +13,7 @@
 import os
 import os.path
 import sys
-import commands
+import subprocess
 import operator
 
 PAGE_SIZE = 0x1000
@@ -50,7 +50,7 @@ class Accesses:
         return reused
         
     def get_ranked_list(self, count):
-        sorted_acc = sorted(self.pages.items(), key=operator.itemgetter(1), reverse=True)
+        sorted_acc = sorted(list(self.pages.items()), key=operator.itemgetter(1), reverse=True)
         return sorted_acc[:count]
 
     def get_count(self):
@@ -85,7 +85,7 @@ class Accesses:
             return self.ranges
 
         self.ranges = []
-        sorted_addr = sorted(self.pages.items(), key=operator.itemgetter(0), reverse=False)
+        sorted_addr = sorted(list(self.pages.items()), key=operator.itemgetter(0), reverse=False)
         start = None
         end = None
         for p in sorted_addr:
@@ -195,22 +195,22 @@ class CacheDump:
         return maps
                 
     def print_stats(self):            
-        print "\nTotal entries: \t%i\nBad: \t\t%i (%0.2f %%)\nNo PID: \t%i (%0.2f %%)\nGood: \t\t%i (%0.2f %%)\n" \
+        print("\nTotal entries: \t%i\nBad: \t\t%i (%0.2f %%)\nNo PID: \t%i (%0.2f %%)\nGood: \t\t%i (%0.2f %%)\n" \
             % (self.tot_entries, \
             self.bad_entries, 100*float(self.bad_entries)/self.tot_entries, \
             self.unresolved, 100*float(self.unresolved)/self.tot_entries, \
             self.okay_entries, 100*float(self.okay_entries)/self.tot_entries, \
-            )
+            ))
         
         for p in self.pid_accesses:            
-            print "\nMost Accessed pages for PID %i:" % (p)
+            print("\nMost Accessed pages for PID %i:" % (p))
             ranked = self.pid_accesses[p].get_ranked_list(10)
             for page in ranked:
-                print "Page: %s Lines: %i" % (hex(page[0]), page[1])
+                print("Page: %s Lines: %i" % (hex(page[0]), page[1]))
 
             ranges = self.pid_accesses[p].get_page_ranges()
             for r in ranges:
-                print "[%s - %s] (%i pages)" % (hex(r[0]), hex(r[1]), (r[1] - r[0])/PAGE_SIZE + 1)
+                print("[%s - %s] (%i pages)" % (hex(r[0]), hex(r[1]), (r[1] - r[0])/PAGE_SIZE + 1))
             
 class Region:
     def __init__(self, start, end, perm, off, dev, inode, path, index):
@@ -311,13 +311,13 @@ class MemSpectrum:
         for i in range(start_idx, stop_idx+1):
             dumpfile = self.base_path + "cachedump" + str(i) + ".csv"
 
-            print "Parsing file: %s" % (dumpfile)
+            print("Parsing file: %s" % (dumpfile))
             
             if os.path.isfile(dumpfile):
                 dump = CacheDump(self.other_pids, dumpfile)
                 self.dumps.append(dump)
             else:
-                print "Error: unable to find file: %s" % (dumpfile)
+                print("Error: unable to find file: %s" % (dumpfile))
                 break
 
     def get_total_blocks_in_region(self, pid, region_idx):
@@ -363,13 +363,13 @@ class MemSpectrum:
             pid = self.pid
         
         for i, d in enumerate(self.dumps):
-            print "=== DUMP %i ===" % (i)
+            print("=== DUMP %i ===" % (i))
             acc = d.pid_accesses[pid]
             reg = d.pid_regions[pid]
             
             for j, r in enumerate(reg):
-                print "Area [%i] (%s) - Pages: %i" % (j, reg[j].short_name, \
-                                                      len(acc.regions_to_pages[j]))
+                print("Area [%i] (%s) - Pages: %i" % (j, reg[j].short_name, \
+                                                      len(acc.regions_to_pages[j])))
                 
 if __name__ == '__main__':
 
@@ -379,6 +379,6 @@ if __name__ == '__main__':
         spect.get_stats_per_region()
         
     else:
-        print(sys.argv[0] + " /proc/<pid>/maps")
+        print((sys.argv[0] + " /proc/<pid>/maps"))
 
 
