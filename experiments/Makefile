@@ -69,7 +69,8 @@ LINK_ARGS = -fpie
 LINK_ARGS = -fno-pie
 LINK_ARGS = -static
 
-GCC_VERSION = 12
+GCC_VERSION = 14
+
 DO_NATIVE=yes
 ifeq ($(DO_NATIVE),yes)
   GXX     = /usr/bin/g++-$(GCC_VERSION)
@@ -78,6 +79,9 @@ else
   GXX     = /usr/bin/aarch64-linux-gnu-g++-$(GCC_VERSION)
   OBJDUMP = /usr/bin/aarch64-linux-gnu-objdump
 endif
+
+$(GXX):
+	sudo apt-get install --yes $@
 
 snapshot.x: snapshot.c ../cache_operations.c ../params_kernel.h $(GXX)
 	$(GXX) -std=c++20 $(CFLAGS) -o $@ $< -lrt $(LINK_ARGS)

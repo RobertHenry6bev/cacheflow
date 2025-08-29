@@ -26,6 +26,8 @@
 
 #include "./params_kernel.h"
 
+void cpu_stall(void * info);
+
 //
 // TODO(robhenry): these are probably specific to reading the L2 Tag
 //
@@ -52,7 +54,7 @@
 //
 
 static bool rmap_one_func(
-    struct page *page, struct vm_area_struct *vma,
+    struct folio *page, struct vm_area_struct *vma,
     unsigned long addr, void *arg);
 static void (*rmap_walk_locked_func)(
     struct page *page, struct rmap_walk_control *rwc) = NULL;
@@ -406,7 +408,7 @@ asm_ramindex_insn_mrs(u32 *ildata, u8 sel) {
     }
 }
 
-static bool rmap_one_func(struct page *page,
+static bool rmap_one_func(struct folio *page,
       struct vm_area_struct *vma, unsigned long addr, void *v_arg) {
     struct task_struct* ts;
     struct mm_struct* mm;
@@ -444,7 +446,7 @@ static bool rmap_one_func(struct page *page,
 }
 
 // done_func seems to get called once per valid pid map
-static int done_func(struct page *page) {
+static int done_func(struct folio *page) {
     if (0) pr_info("rmap_one_func done_func PPPP\n");
     return 1;
 }

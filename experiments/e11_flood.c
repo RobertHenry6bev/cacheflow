@@ -15,7 +15,7 @@
 
 #include "./params.h"
 
-#include "../../robhenry-perf/aha_roi/aha_roi.h"
+#include "../aha_roi/aha_roi.h"
 
 typedef int(*stress_worker)(int);
 
@@ -165,4 +165,4 @@ int main(int argc, const char **argv) {
   }
   return 0;
 }
-#include "../../robhenry-perf/aha_roi/aha_roi.c"
+#include "../aha_roi/aha_roi.c"
